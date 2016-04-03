@@ -32,31 +32,31 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  * @author Mariano Kohan
  *
  */
-public class HotRoutes extends Routes {
+public class JamRoutes extends Routes {
 
-  private List<HotRoute> hotRoutes;
+  private List<JamRoute> jamRoutes;
 
-  public HotRoutes(RoadNetwork roadNetwork) {
+  public JamRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
-    this.hotRoutes = new LinkedList<HotRoute>();
+    this.jamRoutes = new LinkedList<JamRoute>();
   }
 
-  public List<HotRoute> getHotRoutes() {
-    return this.hotRoutes;
+  public List<JamRoute> getJamRoutes() {
+    return this.jamRoutes;
   }
 
-  public void addHotRoute(HotRoute hotRoute) {
-    this.hotRoutes.add(hotRoute);
+  public void addJamRoute(JamRoute JamRoute) {
+    this.jamRoutes.add(JamRoute);
   }
 
   @Override
   public String getLongName() {
-    return "Density-based hot routes on road network";
+    return "Jam routes on road network";
   }
 
   @Override
   public String getShortName() {
-    return "Density-based hot routes";
+    return "Jam routes";
   }
 
 }

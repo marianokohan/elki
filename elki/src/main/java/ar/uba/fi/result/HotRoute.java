@@ -43,19 +43,19 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
 public class HotRoute {
 
   //internal parameterization
-  private static final boolean LOG_RULE_EDGES = true;
-  StringBuffer debugRule;
+  protected static final boolean LOG_RULE_EDGES = true;
+  protected StringBuffer debugRule;
 
   private static final Logging LOG = Logging.getLogger(HotRoute.class);
 
-  private List<DirectedEdge> edges;
+  protected List<DirectedEdge> edges;
 
   public HotRoute(DirectedEdge start) {
     this.edges = new LinkedList<DirectedEdge>();
     this.edges.add(start);
   }
 
-  private HotRoute(List<DirectedEdge> edges) {
+  protected HotRoute(List<DirectedEdge> edges) {
     this.edges = new LinkedList<DirectedEdge>();
     this.edges.addAll(edges);
   }
@@ -74,14 +74,24 @@ public class HotRoute {
     return edgeFeatures;
   }
 
+  public DirectedEdge getLastEdge() {
+    return this.edges.get(this.edges.size()-1);
+  }
+
+  public DirectedEdge getStartEdge() {
+    return this.edges.get(0);
+  }
+
   public Point getStartPoint() {
     SimpleFeature startFeature = (SimpleFeature) edges.get(0).getObject();
     MultiLineString startGeometry = (MultiLineString) startFeature.getDefaultGeometry();
     return ((LineString)startGeometry.getGeometryN(0)).getStartPoint();
   }
 
-  public DirectedEdge getLastEdge() {
-    return this.edges.get(this.edges.size()-1);
+  public Point getEndPoint() {
+    SimpleFeature startFeature = (SimpleFeature) edges.get(this.edges.size()-1).getObject();
+    MultiLineString startGeometry = (MultiLineString) startFeature.getDefaultGeometry();
+    return ((LineString)startGeometry.getGeometryN(0)).getEndPoint();
   }
 
   public SimpleFeature getStartEdgeFeature() {

@@ -67,14 +67,13 @@ public class FlowScan  implements Algorithm {
    */
   private static final Logging LOG = Logging.getLogger(FlowScan.class);
 
-  private RoadNetwork roadNetwork;
-  private TrafficSets trafficSets;
+  protected RoadNetwork roadNetwork;
+  protected TrafficSets trafficSets;
 
-  //TODO: default value handled in the parameterization
-  private int minTraffic;
-  private int epsilon;
+  protected int minTraffic;
+  protected int epsilon;
 
-  boolean onlyTrajectories = false;
+  protected boolean onlyTrajectories = false;
 
   public FlowScan(File roadNetworkFile, int epsilon, int minTraffic, boolean onlyTrajectories) {
     this.roadNetwork = RoadNetwork.getInstance(roadNetworkFile); //TODO: cons. separar de constructor <-> ¿demora en GUI al setear parametros?
@@ -122,7 +121,7 @@ public class FlowScan  implements Algorithm {
   }
 
   //base def. from paper
-  private List<DirectedEdge> discoverHotRouteStarts() {
+  protected List<DirectedEdge> discoverHotRouteStarts() {
     List<DirectedEdge> hotRoutesStarts = new LinkedList<DirectedEdge>();
     Collection edges = this.roadNetwork.getGraph().getEdges();
     for(Iterator edgesIterator = edges.iterator(); edgesIterator.hasNext();) {
@@ -212,13 +211,13 @@ public class FlowScan  implements Algorithm {
     }
   }
 
-  private boolean isRouteTrafficDensityReachable(DirectedEdge directlyTrafficDensityReachableEdge, HotRoute hotRoute) {
+  protected boolean isRouteTrafficDensityReachable(DirectedEdge directlyTrafficDensityReachableEdge, HotRoute hotRoute) {
     List<String> lastEdgesIds = hotRoute.getLastEdgesIds(epsilon);
     lastEdgesIds.add(((SimpleFeature)directlyTrafficDensityReachableEdge.getObject()).getID());
     return trafficSets.trafficInteresection(lastEdgesIds.toArray(new String[] {})).size() >= minTraffic;
   }
 
-  private Set<DirectedEdge> getDirectlyTrafficDensityReachableEdges(HotRoute hotRoute) {
+  protected Set<DirectedEdge> getDirectlyTrafficDensityReachableEdges(HotRoute hotRoute) {
     DirectedEdge lastEdge = hotRoute.getLastEdge();
     Set<DirectedEdge> trafficDensityReachableEdges = new HashSet<DirectedEdge>();
     String edgeId = ((SimpleFeature)lastEdge.getObject()).getID();
@@ -297,10 +296,10 @@ public class FlowScan  implements Algorithm {
     public static final OptionID ONLY_TRAJECTORIES = new OptionID("flowscan.onlyTrajectories", "Only display trajectories (do not discover hot routes).");
 
 
-    private File roadNetworkFile;
-    private int epsilon = 0;
-    private int minTraffic = 0;
-    private boolean onlyTrajectories = false;
+    protected File roadNetworkFile;
+    protected int epsilon = 0;
+    protected int minTraffic = 0;
+    protected boolean onlyTrajectories = false;
 
     @Override
     protected void makeOptions(Parameterization config) {

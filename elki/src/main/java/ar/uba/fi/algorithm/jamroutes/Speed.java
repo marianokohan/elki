@@ -1,15 +1,10 @@
-package ar.uba.fi.result;
-
-import java.util.LinkedList;
-import java.util.List;
-
-import ar.uba.fi.roadnetwork.RoadNetwork;
+package ar.uba.fi.algorithm.jamroutes;
 //TODO: confirm license description
 /*
- This file is developed to be used as part of ELKI:
+ This file is part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
 
- Copyright (C) 2015
+ Copyright (C) 2016
  Ludwig-Maximilians-Universität München
  Lehr- und Forschungseinheit für Datenbanksysteme
  ELKI Development Team
@@ -29,34 +24,29 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  */
 
 /**
+ * calculate de the Speed (def. 1) for an edge
+ *
  * @author Mariano Kohan
  *
  */
-public class HotRoutes extends Routes {
+public class Speed {
 
-  private List<HotRoute> hotRoutes;
+  private float speedSum;
 
-  public HotRoutes(RoadNetwork roadNetwork) {
-    this.roadNetwork = roadNetwork;
-    this.hotRoutes = new LinkedList<HotRoute>();
+  private int transactionsNumber;
+
+  public Speed(float speed) {
+    this.speedSum = speed;
+    this.transactionsNumber = 1;
   }
 
-  public List<HotRoute> getHotRoutes() {
-    return this.hotRoutes;
+  public void upddate(float speed) {
+    this.speedSum += speed;
+    this.transactionsNumber++;
   }
 
-  public void addHotRoute(HotRoute hotRoute) {
-    this.hotRoutes.add(hotRoute);
-  }
-
-  @Override
-  public String getLongName() {
-    return "Density-based hot routes on road network";
-  }
-
-  @Override
-  public String getShortName() {
-    return "Density-based hot routes";
+  public float get() {
+    return (this.speedSum / this.transactionsNumber);
   }
 
 }

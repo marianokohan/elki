@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import ar.uba.fi.converter.BrinkhoffPositionToEdgeConverter;
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
 import de.lmu.ifi.dbs.elki.database.Database;
@@ -61,22 +62,14 @@ public class TrafficSets {
     }
   }
 
-  private Integer filterPrefixFromEdgeFeatureId(String edgeFeatureID) {
-    int prefixSeparatorPosition = edgeFeatureID.lastIndexOf(".");
-    if (prefixSeparatorPosition > 0) {
-      return Integer.parseInt(edgeFeatureID.substring(prefixSeparatorPosition + 1));
-    } else {
-      return Integer.parseInt(edgeFeatureID);
-    }
- }
-
   /**
    * return the traffic for the given edge id
    * @param edgeId
    * @return
    */
   public Set<Integer> traffic(String edgeId) {
-    Set<Integer> trafficSet = edgeTransactionsMap.get(filterPrefixFromEdgeFeatureId(edgeId));
+    int parsedEdgeId = Integer.parseInt(BrinkhoffPositionToEdgeConverter.filterPrefixFromEdgeFeatureId(edgeId));
+    Set<Integer> trafficSet = edgeTransactionsMap.get(parsedEdgeId);
     if (trafficSet == null) {
       trafficSet = new HashSet<Integer>();
     }

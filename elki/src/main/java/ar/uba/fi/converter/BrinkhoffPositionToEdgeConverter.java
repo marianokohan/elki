@@ -73,6 +73,14 @@ public class BrinkhoffPositionToEdgeConverter {
   // y-extend map.
   private double dY;
 
+  /*
+   * speed stats values
+   */
+  private double minSpeed;
+  private double maxSpeed;
+  private double speedSum;
+  private double speedCount;
+
   /**
    * The resolution of the network map (from ShapeNetworkFileManager)
    */
@@ -88,6 +96,10 @@ public class BrinkhoffPositionToEdgeConverter {
     dX = shapefileHeader.maxX()-minX;
     dY = maxY-shapefileHeader.minY();
     shapefileReader.close();
+    this.minSpeed = -1;
+    this.maxSpeed = 0;
+    this.speedSum = 0;
+    this.speedCount = 0;
   }
 
   public void convertPositions() {
@@ -117,8 +129,9 @@ public class BrinkhoffPositionToEdgeConverter {
         Coordinate positionCoordinate =  new Coordinate( longitude, latitude);
         SimpleFeature edgeFeature = roadNetwork.snapPointToEdge(positionCoordinate);
         NumberFormat formatter = new DecimalFormat("#0.00000");
+        String speed = trajectoryElements[7];
         //converted format
-        // trId; timestamp; edgeId; longitude; latitude (same as currently implemented)
+        // trId; timestamp; edgeId; longitude; latitude (same as currently implemented); speed (same from file)
         StringBuffer convertedTrajectory = new StringBuffer(trajectoryElements[1]).append(";");
         if (edgeFeature == null) { //in case the point could not be snapped to an edge
                                     // TODO: consider to review to avoid reduce on dataset size -> improve snap or another solution
@@ -128,18 +141,16 @@ public class BrinkhoffPositionToEdgeConverter {
           convertedTrajectory.append(trajectoryElements[4]).append(";");
           convertedTrajectory.append(filterPrefixFromEdgeFeatureId(edgeFeature.getID())).append(";");
           convertedTrajectory.append(formatter.format(longitude)).append(";");
-          convertedTrajectory.append(formatter.format(latitude)).append("\n");
-          /*;
-          convertedTrajectory.append(latitude).append(";");
-          convertedTrajectory.append(trajectoryElements[5]).append(";");
-          convertedTrajectory.append(trajectoryElements[6]).append("\n");
-          */
+          convertedTrajectory.append(formatter.format(latitude)).append(";");
+          convertedTrajectory.append(speed).append("\n");
           convertedTrajectories.write(convertedTrajectory.toString());
+          this.calculateSpeedStats(speed);
         }
       }
       convertedTrajectories.close();
       trajectoriesReader.close();
       LOG.debug("could not snap " + notSnapedPositions +  " positions to  an edge");
+      this.printSpeedStats();
     }
       catch(FileNotFoundException e) {
       de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
@@ -147,6 +158,40 @@ public class BrinkhoffPositionToEdgeConverter {
       catch(IOException e) {
       de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
     }
+  }
+
+  private void calculateSpeedStats(String speedString) {
+    double speed = Double.parseDouble(speedString);
+
+    if (speed > 0) {
+      if (this.minSpeed == -1) {
+        this.minSpeed = speed;
+      } else {
+        if (speed < this.minSpeed) {
+          this.minSpeed = speed;
+        }
+      }
+
+      if (this.maxSpeed == 0) {
+        this.maxSpeed = speed;
+      } else {
+        if (speed > this.maxSpeed) {
+          this.maxSpeed = speed;
+        }
+      }
+    }
+
+    this.speedSum += speed;
+    this.speedCount++;
+  }
+
+  private void printSpeedStats() {
+    StringBuffer speedStats = new StringBuffer("\nSpeed values: \n-------------");
+    speedStats.append("\n").append("min: ").append(this.minSpeed);
+    speedStats.append("\n").append("max: ").append(this.maxSpeed);
+    speedStats.append("\n").append("mean: ").append(this.speedSum/this.speedCount);
+    speedStats.append("\n");
+    System.out.println(speedStats);
   }
 
   //Converts the positive x-value into a longitude
@@ -161,7 +206,7 @@ public class BrinkhoffPositionToEdgeConverter {
     return maxY - (yValue * dY/resolution);
   }
 
-  private String filterPrefixFromEdgeFeatureId(String edgeFeatureID) {
+  public static String filterPrefixFromEdgeFeatureId(String edgeFeatureID) {
      int prefixSeparatorPosition = edgeFeatureID.lastIndexOf(".");
      if (prefixSeparatorPosition > 0) {
        return edgeFeatureID.substring(prefixSeparatorPosition + 1);

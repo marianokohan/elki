@@ -8,9 +8,10 @@ import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
+import org.opengis.feature.simple.SimpleFeature;
 
-import ar.uba.fi.result.HotRoute;
-import ar.uba.fi.result.HotRoutes;
+import ar.uba.fi.result.JamRoute;
+import ar.uba.fi.result.JamRoutes;
 
 import com.vividsolutions.jts.geom.Point;
 
@@ -50,20 +51,23 @@ import de.lmu.ifi.dbs.elki.utilities.datastructures.hierarchy.Hierarchy;
  * @author Mariano Kohan
  *
  */
-public class HotRoutesVisualizer extends RoutesVisualizer implements ResultHandler {
+public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandler {
 
   //internal parameterization
-  private static final int MIN_HOT_ROUTE_EDGES = 1;
+  private static final int MIN_JAM_ROUTE_EDGES = 1;
+  private static final boolean DISPLAY_ONLY_ROUTES_WITH_JAMS = false;
   private static final boolean DISPLAY_MAP = true;
   private static final boolean DISPLAY_TRAJECTORIES = false;
-  private static final Color HOT_ROUTE_COLOR = new Color(245, 237, 0);
-  private static final Color HOT_ROUTE_POINT_COLOR = new Color(204, 197, 0);
-  static final Logging LOG = Logging.getLogger(HotRoutesVisualizer.class);
+  private static final Color JAM_ROUTE_COLOR = new Color(245, 237, 0);
+  private static final Color JAM_ROUTE_POINT_COLOR = new Color(204, 197, 0);
+  private static final Color JAM_ROUTE_JAM_COLOR = new Color(232, 4, 0);
+
+  static final Logging LOG = Logging.getLogger(JamRoutesVisualizer.class);
 
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
-    // TODO improve -> base for cast and child for specific cases ?(to review)
-    HotRoutes hotRoutes = null;
+    // TODO improve
+    JamRoutes jamRoutes = null;
     StaticArrayDatabase database = null;
     for (Hierarchy.Iter<Result> iter = ((BasicResult)newResult).getHierarchy().iterChildren(newResult); iter.valid(); iter.advance()) {
       Result result = iter.get();
@@ -71,42 +75,51 @@ public class HotRoutesVisualizer extends RoutesVisualizer implements ResultHandl
         database = (StaticArrayDatabase) result;
       }
 
-      if (result instanceof HotRoutes) {
-        hotRoutes = (HotRoutes) result;
+      if (result instanceof JamRoutes) {
+        jamRoutes = (JamRoutes) result;
       }
     }
     //TODO: consider that the applied validation will not separate the cases of "0 discovered hot routes" from "only trajectories"
-//    displayFirstTrajectory(hotRoutes, database);
-    if (hotRoutes.getHotRoutes().isEmpty())
-      displayTrajectories(hotRoutes, database);
+    if (jamRoutes.getJamRoutes().isEmpty())
+      displayTrajectories(jamRoutes, database);
     else
-      displayHotRoutes(hotRoutes, database);
+      displayJamRoutes(jamRoutes, database);
   }
 
-  private void displayHotRoutes(HotRoutes hotRoutes, Database database) {
-    SimpleFeatureSource featureSource = hotRoutes.getRoadNetwork().getRoadsFeatureSource();
+  private void displayJamRoutes(JamRoutes jamRoutes, Database database) {
+    SimpleFeatureSource featureSource = jamRoutes.getRoadNetwork().getRoadsFeatureSource();
 
     MapContent map = new MapContent();
-    map.setTitle(hotRoutes.getLongName());
+    map.setTitle(jamRoutes.getLongName());
 
     map.addLayer(createRoadNetworkLayer(featureSource));
     if (DISPLAY_TRAJECTORIES)
       map.addLayer(createTrajectoriesLayer(featureSource, database));
 
-    List<Point> hotRouteStartPoints = new LinkedList<Point>();
-    List<Point> hotRouteEndPoints = new LinkedList<Point>();
-    DefaultFeatureCollection hotRouteEdges = new DefaultFeatureCollection();
-    for(HotRoute hotRoute : hotRoutes.getHotRoutes()) {
-      if (hotRoute.getLength() >= MIN_HOT_ROUTE_EDGES) {
-        hotRouteEdges.addAll(hotRoute.getEdgeFeatures());
-        hotRouteStartPoints.add(hotRoute.getStartPoint());
-        hotRouteEndPoints.add(hotRoute.getEndPoint());
+    List<Point> jamRouteStartPoints = new LinkedList<Point>();
+    List<Point> jamRouteEndPoints = new LinkedList<Point>();
+    DefaultFeatureCollection jamRouteEdges = new DefaultFeatureCollection();
+    DefaultFeatureCollection jamRouteJamEdges = new DefaultFeatureCollection();
+    for(JamRoute jamRoute : jamRoutes.getJamRoutes()) {
+      if (jamRoute.getLength() >= MIN_JAM_ROUTE_EDGES) {
+        List<SimpleFeature>[] jamRouteEdgeFeatures = jamRoute.getEdgeWithJamsFeatures();
+        if ( ((DISPLAY_ONLY_ROUTES_WITH_JAMS && (jamRouteEdgeFeatures[1].size() > 0))) || (!DISPLAY_ONLY_ROUTES_WITH_JAMS)) {
+          jamRouteEdges.addAll(jamRouteEdgeFeatures[0]);
+          jamRouteJamEdges.addAll(jamRouteEdgeFeatures[1]);
+          jamRouteStartPoints.add(jamRoute.getStartPoint());
+          jamRouteEndPoints.add(jamRoute.getEndPoint());
+        }
       }
     }
 
-    map.addLayer(createEdgesLayer(hotRouteEdges, featureSource, HOT_ROUTE_COLOR, 3));
-    map.addLayer(createPointsLayer(hotRouteStartPoints, featureSource, PointPositionType.START, HOT_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(hotRouteEndPoints, featureSource, PointPositionType.END, HOT_ROUTE_POINT_COLOR, 8));
+    map.addLayer(createEdgesLayer(jamRouteEdges, featureSource, JAM_ROUTE_COLOR, 3));
+    if (jamRouteJamEdges.size() > 0) {
+      map.addLayer(createEdgesLayer(jamRouteJamEdges, featureSource, JAM_ROUTE_JAM_COLOR, 4));
+    } else {
+      System.out.println("no edges with jams");
+    }
+    map.addLayer(createPointsLayer(jamRouteStartPoints, featureSource, PointPositionType.START, JAM_ROUTE_POINT_COLOR, 5));
+    map.addLayer(createPointsLayer(jamRouteEndPoints, featureSource, PointPositionType.END, JAM_ROUTE_POINT_COLOR, 8));
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);

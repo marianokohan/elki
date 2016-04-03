@@ -1,15 +1,10 @@
 package ar.uba.fi.result;
-
-import java.util.LinkedList;
-import java.util.List;
-
-import ar.uba.fi.roadnetwork.RoadNetwork;
 //TODO: confirm license description
 /*
- This file is developed to be used as part of ELKI:
+ This file is part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
 
- Copyright (C) 2015
+ Copyright (C) 2016
  Ludwig-Maximilians-Universität München
  Lehr- und Forschungseinheit für Datenbanksysteme
  ELKI Development Team
@@ -28,35 +23,33 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import ar.uba.fi.roadnetwork.RoadNetwork;
+import de.lmu.ifi.dbs.elki.result.Result;
+
 /**
  * @author Mariano Kohan
  *
  */
-public class HotRoutes extends Routes {
+public class Routes implements Result {
 
-  private List<HotRoute> hotRoutes;
+  protected RoadNetwork roadNetwork;
 
-  public HotRoutes(RoadNetwork roadNetwork) {
+  public RoadNetwork getRoadNetwork() {
+    return roadNetwork;
+  }
+
+  public void setRoadNetwork(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
-    this.hotRoutes = new LinkedList<HotRoute>();
-  }
-
-  public List<HotRoute> getHotRoutes() {
-    return this.hotRoutes;
-  }
-
-  public void addHotRoute(HotRoute hotRoute) {
-    this.hotRoutes.add(hotRoute);
   }
 
   @Override
   public String getLongName() {
-    return "Density-based hot routes on road network";
+    return "Routes on road network";
   }
 
   @Override
   public String getShortName() {
-    return "Density-based hot routes";
+    return "Routes";
   }
 
 }
