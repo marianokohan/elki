@@ -100,4 +100,23 @@ public class JamRoute extends HotRoute {
     return new List[] { edgeFeatures, jamFeatures };
   }
 
+  public boolean containsJams() {
+    return !this.jams.isEmpty();
+  }
+
+  public String toString() {
+    StringBuffer  rule = new StringBuffer("jam route (" + edges.size() + " edges): ");
+    for(DirectedEdge directedEdge : edges) {
+      SimpleFeature feature = (SimpleFeature)directedEdge.getObject();
+      rule.append(feature.getID());
+      if (isJam(directedEdge)) {
+        rule.append(" (JAM) -> ");
+      } else {
+        rule.append(" -> ");
+      }
+    }
+    rule.append("[END]");
+    return rule.toString();
+  }
+
 }
