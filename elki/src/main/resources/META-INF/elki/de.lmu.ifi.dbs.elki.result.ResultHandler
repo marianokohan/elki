@@ -5,3 +5,6 @@ de.lmu.ifi.dbs.elki.result.KMLOutputHandler
 de.lmu.ifi.dbs.elki.application.jsmap.JSONResultHandler
 de.lmu.ifi.dbs.elki.result.LogResultStructureResultHandler
 tutorial.outlier.SimpleScoreDumper
+# 2016-04-10: Routes implementations classes
+ar.uba.fi.visualization.geo.HotRoutesVisualizer
+ar.uba.fi.visualization.geo.JamRoutesVisualizer

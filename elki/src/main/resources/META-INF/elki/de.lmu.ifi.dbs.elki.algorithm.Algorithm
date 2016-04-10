@@ -148,3 +148,6 @@ tutorial.clustering.NaiveAgglomerativeHierarchicalClustering4
 tutorial.clustering.SameSizeKMeansAlgorithm
 tutorial.outlier.DistanceStddevOutlier
 tutorial.outlier.ODIN
+# 2016-04-10: Routes implementations classes
+ar.uba.fi.algorithm.hotroutes.FlowScan
+ar.uba.fi.algorithm.jamroutes.JamFlowScan
