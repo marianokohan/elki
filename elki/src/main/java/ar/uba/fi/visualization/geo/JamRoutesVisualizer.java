@@ -112,7 +112,11 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       }
     }
 
-    map.addLayer(createEdgesLayer(jamRouteEdges, featureSource, JAM_ROUTE_COLOR, 3));
+    if (jamRouteEdges.size() > 0) {
+      map.addLayer(createEdgesLayer(jamRouteEdges, featureSource, JAM_ROUTE_COLOR, 3));
+    } else {
+      System.out.println("only edges with jams ?!?");
+    }
     if (jamRouteJamEdges.size() > 0) {
       map.addLayer(createEdgesLayer(jamRouteJamEdges, featureSource, JAM_ROUTE_JAM_COLOR, 4));
     } else {
