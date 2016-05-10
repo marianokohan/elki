@@ -96,7 +96,7 @@ public class JamRoute extends HotRoute {
         edgeFeatures.add(feature);
       }
     }
-    if (LOG_RULE_EDGES) LOG.debug(debugRule.append("[END]"));
+    if (LOG_RULE_EDGES) LOG.debug(debugRule.substring(0, debugRule.length() - 4));
     return new List[] { edgeFeatures, jamFeatures };
   }
 
@@ -115,8 +115,7 @@ public class JamRoute extends HotRoute {
         rule.append(" -> ");
       }
     }
-    rule.append("[END]");
-    return rule.toString();
+    return rule.substring(0, rule.length() - 4).toString();
   }
 
 }

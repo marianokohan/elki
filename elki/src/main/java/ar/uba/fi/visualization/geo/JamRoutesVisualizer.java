@@ -1,6 +1,13 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -58,6 +65,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
   private static final boolean DISPLAY_ONLY_ROUTES_WITH_JAMS = false;
   private static final boolean DISPLAY_MAP = true;
   private static final boolean DISPLAY_TRAJECTORIES = false;
+  private static final boolean CREATE_JAM_ROUTES_FILE = true;
   private static final Color JAM_ROUTE_COLOR = new Color(245, 237, 0);
   private static final Color JAM_ROUTE_POINT_COLOR = new Color(204, 197, 0);
   private static final Color JAM_ROUTE_JAM_COLOR = new Color(232, 4, 0);
@@ -84,6 +92,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       displayTrajectories(jamRoutes, database);
     else
       displayJamRoutes(jamRoutes, database);
+      logJamRoutesFile(jamRoutes);
   }
 
   private void displayJamRoutes(JamRoutes jamRoutes, Database database) {
@@ -127,6 +136,26 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);
+    }
+  }
+
+  private void logJamRoutesFile(JamRoutes jamRoutes) {
+    if (CREATE_JAM_ROUTES_FILE) {
+      Path jamRoutesFilePath = FileSystems.getDefault().getPath("jam_routes.txt");
+      Charset charset = Charset.forName("UTF-8");
+      try (BufferedWriter writer = Files.newBufferedWriter(jamRoutesFilePath, charset, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
+        for(JamRoute jamRoute : jamRoutes.getJamRoutes()) {
+          if (jamRoute.getLength() >= MIN_JAM_ROUTE_EDGES) {
+            List<SimpleFeature>[] jamRouteEdgeFeatures = jamRoute.getEdgeWithJamsFeatures();
+            if ( ((DISPLAY_ONLY_ROUTES_WITH_JAMS && (jamRouteEdgeFeatures[1].size() > 0))) || (!DISPLAY_ONLY_ROUTES_WITH_JAMS)) {
+              writer.write(jamRoute.toString());
+              writer.newLine();
+            }
+          }
+        }
+      } catch (IOException ioException) {
+          System.err.format("IOException on logging jam routes to file %s: %s%n", jamRoutesFilePath, ioException);
+      }
     }
   }
 
