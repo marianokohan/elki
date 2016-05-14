@@ -1,13 +1,5 @@
 package ar.uba.fi.result;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -39,15 +31,18 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  * @author Mariano Kohan
  *
  */
-public class JamRoutes extends Routes {
+public class ColdRoutes extends Routes {
 
-  private List<JamRoute> jamRoutes;
+  //TODO: tmp initial field for testing -> create specific class for cold route patterns
+  public Set<String> jamEdgeIds;
 
-  public JamRoutes(RoadNetwork roadNetwork) {
+  public ColdRoutes(RoadNetwork roadNetwork, Set<String> jamEdgeIds) {
     this.roadNetwork = roadNetwork;
-    this.jamRoutes = new LinkedList<JamRoute>();
+    this.jamEdgeIds = jamEdgeIds;
   }
 
+  //TODO: create specific class for cold route patterns
+  /*
   public List<JamRoute> getJamRoutes() {
     return this.jamRoutes;
   }
@@ -55,35 +50,16 @@ public class JamRoutes extends Routes {
   public void addJamRoute(JamRoute JamRoute) {
     this.jamRoutes.add(JamRoute);
   }
+  */
 
   @Override
   public String getLongName() {
-    return "Jam routes on road network";
+    return "Cold routes on road network";
   }
 
   @Override
   public String getShortName() {
-    return "Jam routes";
-  }
-
-  /**
-   * given a File with representations of the jam route from "toString()"
-   *  it extracts the ids of the "jam" edges (for all the jamRoutes)
-   * @param jamRouteString
-   * @return
-   */
-  public static Set<String> parseJamEdgeIds(File jamRoutesFile) {
-    Set<String> jamEdgeIds = new HashSet<String>();
-    Charset charset = Charset.forName("UTF-8");
-    try (BufferedReader reader = Files.newBufferedReader(jamRoutesFile.toPath(), charset)) {
-        String jamRouteLine = null;
-        while ((jamRouteLine = reader.readLine()) != null) {
-            jamEdgeIds.addAll(JamRoute.parseJamEdgeIds(jamRouteLine));
-        }
-    } catch (IOException ioException) {
-      System.err.format("IOException on parsing jam routes from file %s: %s%n", jamRoutesFile, ioException);
-    }
-    return jamEdgeIds;
+    return "Cold routes";
   }
 
 }

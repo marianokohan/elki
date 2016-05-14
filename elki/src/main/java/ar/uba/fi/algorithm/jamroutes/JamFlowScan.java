@@ -137,7 +137,7 @@ public class JamFlowScan extends FlowScan {
 
     /**
      * Parameter to specify the threshold for maximum speed of a traffic jam
-     * Must be an integer greater than 0.
+     * Must be an double greater than 0.
      */
     public static final OptionID JAM_SPEED_ID = new OptionID("jamflowscan.jamspeed", "Threshold for maximum speed to identify a jam inside a jam route");
 

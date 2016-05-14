@@ -4,6 +4,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.geotools.graph.structure.DirectedEdge;
 //TODO: confirm license description
@@ -116,6 +118,26 @@ public class JamRoute extends HotRoute {
       }
     }
     return rule.substring(0, rule.length() - 4).toString();
+  }
+
+  /**
+   * given the representation of the jam route from "toString()"
+   *  it extracts the ids of the "jam" edges
+   * @param jamRouteString
+   * @return
+   */
+  public static Set<String> parseJamEdgeIds(String jamRouteString) {
+    Set<String> jamEdgeIds = new HashSet<String>();
+    String[] jamRouteEdges = jamRouteString.split(":")[1].split(" -> ");
+    for(int edgeIndex = 0; edgeIndex < jamRouteEdges.length; edgeIndex++) {
+      String edge = jamRouteEdges[edgeIndex];
+      Pattern pattern = Pattern.compile("(.*) \\(JAM\\)");
+      Matcher matcher = pattern.matcher(edge);
+      if (matcher.matches()) {
+        jamEdgeIds.add(matcher.group(1));
+      }
+    }
+    return jamEdgeIds;
   }
 
 }

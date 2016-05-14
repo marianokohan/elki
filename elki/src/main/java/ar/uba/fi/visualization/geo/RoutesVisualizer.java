@@ -253,23 +253,7 @@ public class RoutesVisualizer {
     StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
     FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
 
-    DefaultFeatureCollection featureCollection = new DefaultFeatureCollection();
-    for (Geometry geometry : lineGeometries)
-    {
-        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
-        builder.setName("Trajectory");
-        builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
-        builder.add("the_geom", LineString.class);
-        builder.length(15).add("Name", String.class); // 15 chars width for name field
-
-        SimpleFeatureType pointType = builder.buildFeatureType();
-
-        SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
-        simpleFeatureBuilder.add(geometry);
-
-        SimpleFeature lineFeature = simpleFeatureBuilder.buildFeature(null);
-        featureCollection.add(lineFeature);
-    }
+    DefaultFeatureCollection featureCollection = edgeGeometriesToFeatureCollection(lineGeometries);
 
     Stroke markStroke = styleFactory.createStroke(filterFactory.literal(TRAJECTORY_COLOR),
             filterFactory.literal(3));
@@ -360,28 +344,33 @@ public class RoutesVisualizer {
     return createEdgeGeometriesLayer(featureSource, createFirstTrajectoryEdgeGeometries(database, featureSource));
   }
 
-  private FeatureLayer createEdgeGeometriesLayer(SimpleFeatureSource featureSource, List<Geometry> edgeGeometries) {
-    StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
-    FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
-
+  protected DefaultFeatureCollection edgeGeometriesToFeatureCollection(List<Geometry> edgeGeometries) {
     DefaultFeatureCollection featureCollection = new DefaultFeatureCollection();
+
+    //TODO: review if correct location of this block (out of for cycle
+    SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
+    builder.setName("Trajectory");
+    builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
+    builder.add("the_geom", LineString.class);
+    builder.length(15).add("Name", String.class); // 15 chars width for name field
+
+    SimpleFeatureType lineType = builder.buildFeatureType();
+    SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(lineType);
     for (Geometry geometry : edgeGeometries)
     {
-        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
-        builder.setName("Trajectory");
-        builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
-        builder.add("the_geom", LineString.class);
-        builder.length(15).add("Name", String.class); // 15 chars width for name field
-
-        SimpleFeatureType pointType = builder.buildFeatureType();
-
-        SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
         simpleFeatureBuilder.add(geometry);
-
         SimpleFeature lineFeature = simpleFeatureBuilder.buildFeature(null);
         featureCollection.add(lineFeature);
     }
+    return featureCollection;
+  }
 
+  private FeatureLayer createEdgeGeometriesLayer(SimpleFeatureSource featureSource, List<Geometry> edgeGeometries) {
+    DefaultFeatureCollection featureCollection = edgeGeometriesToFeatureCollection(edgeGeometries);
+
+    //TODO: review refactor with 'createEdgesLayer'
+    StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
+    FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
     Stroke markStroke = styleFactory.createStroke(filterFactory.literal(new Color(238, 238, 0)),
             filterFactory.literal(8));
 
