@@ -64,6 +64,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
   */
   private static final boolean DISPLAY_MAP = true;
   private static final Color JAM_COLOR = new Color(232, 4, 0);
+  private static final Color BR_COLOR = new Color(0, 118, 214);
 
   /*
   private static final boolean DISPLAY_TRAJECTORIES = false;
@@ -114,14 +115,21 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
     map.addLayer(createRoadNetworkLayer(featureSource));
 
     //TODO: base impl for v1-initial testing
-    List<Geometry> jamEdgesGeometries = this.createJamEdgesGeometries(coldRoutes.jamEdgeIds, featureSource);
-    map.addLayer(createEdgesLayer(edgeGeometriesToFeatureCollection(jamEdgesGeometries), featureSource, JAM_COLOR, 3));
+    //List<Geometry> jamEdgesGeometries = this.createJamEdgesGeometries(coldRoutes.jamEdgeIds, featureSource);
+    //map.addLayer(createEdgesLayer(edgeGeometriesToFeatureCollection(jamEdgesGeometries), featureSource, JAM_COLOR, 3));
+
+    //TODO: base impl for v2 verification
+    map.addLayer(createEdgesLayer(coldRoutes.boundingRectangleEdges, featureSource, BR_COLOR, 2));
+    map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
+
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);
     }
   }
 
+  /*
+   * TODO: initial tmp method for incremental development verification
   private List<Geometry> createJamEdgesGeometries(Set<String> jamEdgeIds, SimpleFeatureSource featureSource) {
     List<Geometry> edgeGeometries = new LinkedList<Geometry>();
     List<FeatureIdImpl> jamEdgeFeatureIds = new LinkedList<FeatureIdImpl>();
@@ -148,6 +156,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
     }
     return edgeGeometries;
   }
+   */
 
   /*
   private void displayJamRoutes(JamRoutes jamRoutes, Database database) {

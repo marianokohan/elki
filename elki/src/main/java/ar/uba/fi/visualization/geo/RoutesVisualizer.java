@@ -128,7 +128,8 @@ public class RoutesVisualizer {
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createTrajectoriesEdgesLayer(featureSource, edgeFeaturePrefix, database));
     map.addLayer(createTrajectoriesLayer(featureSource, database));
-    map.addLayer(createTrajectoriesPointsLayer(featureSource, database));
+    //TODO: commented to avoid memory issue on visualization of big datasets
+//    map.addLayer(createTrajectoriesPointsLayer(featureSource, database));
 
     JMapFrame.showMap(map);
   }
@@ -467,7 +468,7 @@ public class RoutesVisualizer {
    * TODO : consider to improve previous visualization method according to these ones
    *************************************/
 
-  protected FeatureLayer createEdgesLayer(DefaultFeatureCollection edges, SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
+  protected FeatureLayer createEdgesLayer(SimpleFeatureCollection edges, SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
     StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
     FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
 

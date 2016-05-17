@@ -2,6 +2,8 @@ package ar.uba.fi.result;
 
 import java.util.Set;
 
+import org.geotools.data.simple.SimpleFeatureCollection;
+
 import ar.uba.fi.roadnetwork.RoadNetwork;
 //TODO: confirm license description
 /*
@@ -33,12 +35,13 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  */
 public class ColdRoutes extends Routes {
 
-  //TODO: tmp initial field for testing -> create specific class for cold route patterns
-  public Set<String> jamEdgeIds;
+  //TODO: tmp initial fields for testing -> create specific class for cold route patterns
+  //public Set<String> jamEdgeIds;
+  public SimpleFeatureCollection jamEdges;
+  public SimpleFeatureCollection boundingRectangleEdges;
 
-  public ColdRoutes(RoadNetwork roadNetwork, Set<String> jamEdgeIds) {
+  public ColdRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
-    this.jamEdgeIds = jamEdgeIds;
   }
 
   //TODO: create specific class for cold route patterns
