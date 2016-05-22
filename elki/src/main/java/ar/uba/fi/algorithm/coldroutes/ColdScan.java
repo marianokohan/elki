@@ -27,6 +27,9 @@ import ar.uba.fi.result.ColdRoutes;
 import ar.uba.fi.result.JamRoutes;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 
+import com.vividsolutions.jts.algorithm.Angle;
+import com.vividsolutions.jts.geom.Coordinate;
+import com.vividsolutions.jts.geom.MultiLineString;
 import com.vividsolutions.jts.geom.Polygon;
 
 import de.lmu.ifi.dbs.elki.algorithm.Algorithm;
@@ -123,7 +126,10 @@ public class ColdScan implements Algorithm {
       //TODO: tmp fields for incremental development verification
       SimpleFeatureCollection jamEdges = getJamEdgesFeatureCollection(jamEdgeIds);
       coldRoutes.jamEdges = jamEdges;
-      coldRoutes.boundingRectangleEdges = getBoundingRectangleEdges(jamEdges);
+      //TODO: used on incremental verification development
+//      coldRoutes.boundingRectangleEdges = getBoundingRectangleEdges(jamEdges);
+      coldRoutes.neighborhoodBREdges = getNeighborhoodBREdges(jamEdges);
+
     } catch (IOException ioException) {
       LOG.error("Exception during bounding rectangle neighborhood processing: " + ioException.getMessage());
     }
@@ -143,6 +149,26 @@ public class ColdScan implements Algorithm {
     return this.roadNetwork.getRoadsFeatureSource().getFeatures(idFilter);
   }
 
+  private SimpleFeatureCollection getNeighborhoodBREdges(SimpleFeatureCollection edges)
+      throws IOException {
+    DefaultFeatureCollection neighborhoodBREdges = new DefaultFeatureCollection();
+    SimpleFeatureCollection boundingRectangleEdges;
+    SimpleFeatureIterator simpleFeatureIterator =  edges.features();
+    try {
+      while (simpleFeatureIterator.hasNext()) {
+        SimpleFeature edge = simpleFeatureIterator.next();
+        LOG.debug("edge [" + edge.getID() + "]");
+        boundingRectangleEdges = getBoundingRectangleEdges(edge);
+        neighborhoodBREdges.addAll(getDirectionEdges(edge, boundingRectangleEdges));
+      }
+    }
+    finally {
+      simpleFeatureIterator.close();
+    }
+    return neighborhoodBREdges;
+  }
+
+  /* TODO: used on incremental verification development
   private SimpleFeatureCollection getBoundingRectangleEdges(SimpleFeatureCollection edges)
       throws IOException {
     DefaultFeatureCollection boundingRectangleEdges = new DefaultFeatureCollection();
@@ -164,6 +190,7 @@ public class ColdScan implements Algorithm {
     }
     return boundingRectangleEdges;
   }
+  */
 
   //TODO: define other sizes for BR
   private SimpleFeatureCollection getBoundingRectangleEdges(SimpleFeature edge)
@@ -194,6 +221,34 @@ public class ColdScan implements Algorithm {
     //both filters (time improvement)
     Filter filters = ffilterFactory.and(bboxFilter, brFilter);
     return featureSource.getFeatures(filters);
+  }
+
+  private SimpleFeatureCollection getDirectionEdges(SimpleFeature jamEdge, SimpleFeatureCollection edges)
+      throws IOException {
+    DefaultFeatureCollection directionEdges = new DefaultFeatureCollection();
+    Coordinate[] jamCoordinates = ((MultiLineString)jamEdge.getDefaultGeometry()).getCoordinates();
+    double jamAngle = Angle.angle(jamCoordinates[0], jamCoordinates[jamCoordinates.length - 1]);
+    LOG.debug("jam edge [" + jamEdge.getID() + "] - angle: " + jamAngle);
+    SimpleFeatureIterator simpleFeatureIterator =  edges.features();
+    try {
+        while (simpleFeatureIterator.hasNext()) {
+          SimpleFeature edge = simpleFeatureIterator.next();
+          if (!edge.getID().equals(jamEdge.getID())) {
+            Coordinate[] edgeCoordinates = ((MultiLineString)edge.getDefaultGeometry()).getCoordinates();
+            double edgeAngle = Angle.angle(edgeCoordinates[0], edgeCoordinates[edgeCoordinates.length - 1]);
+            LOG.debug(" -- br edge [" + edge.getID() + "] - angle: " + edgeAngle);
+            double angleDiff = Angle.diff(jamAngle, edgeAngle);
+            LOG.debug(" \t -> angle diff: " + angleDiff);
+            if (angleDiff <= Math.PI / 4) {
+              directionEdges.add(edge);
+            }
+          }
+      }
+    }
+    finally {
+      simpleFeatureIterator.close();
+    }
+    return directionEdges;
   }
 
 

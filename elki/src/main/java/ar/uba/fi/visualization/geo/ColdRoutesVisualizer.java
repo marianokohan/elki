@@ -119,9 +119,12 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
     //map.addLayer(createEdgesLayer(edgeGeometriesToFeatureCollection(jamEdgesGeometries), featureSource, JAM_COLOR, 3));
 
     //TODO: base impl for v2 verification
-    map.addLayer(createEdgesLayer(coldRoutes.boundingRectangleEdges, featureSource, BR_COLOR, 2));
-    map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
+    //map.addLayer(createEdgesLayer(coldRoutes.boundingRectangleEdges, featureSource, BR_COLOR, 2));
+    //map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
 
+    //TODO: base impl for v3 verification
+    map.addLayer(createEdgesLayer(coldRoutes.neighborhoodBREdges, featureSource, BR_COLOR, 2));
+    map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);
