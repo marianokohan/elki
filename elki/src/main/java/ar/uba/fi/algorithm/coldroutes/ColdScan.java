@@ -84,14 +84,16 @@ public class ColdScan implements Algorithm {
 
   private double maxTraffic;
 //TODO: define field/parameters for BR -> define parameterization
-  private double expandBRX = 0.5; //1; //6; //0.5;
-  private double expandBRY = 0.5; //1; //6; //0.5;
+  private double expandXBR;
+  private double expandYBR;
   private File jamRoutesFile;
 
   //TODO: define parameters for BR
-  public ColdScan(File roadNetworkFile, double maxTraffic, File jamRoutesFile) {
+  public ColdScan(File roadNetworkFile, double maxTraffic, double expandXBR, double expandYBR, File jamRoutesFile) {
     this.roadNetwork = RoadNetwork.getInstance(roadNetworkFile); //TODO: cons. separar de constructor <-> ¿demora en GUI al setear parametros?
     this.maxTraffic = maxTraffic;
+    this.expandXBR = expandXBR;
+    this.expandYBR = expandYBR;
     this.jamRoutesFile = jamRoutesFile;
   }
 
@@ -206,8 +208,8 @@ public class ColdScan implements Algorithm {
     LOG.debug("  --  bounding box: " + edgeBoudingBox);
     ReferencedEnvelope boundingRectangle = new ReferencedEnvelope(edgeBoudingBox);
     //TODO: define other sizes for BR -> parameterization
-    double expandX = boundingRectangle.getWidth() * this.expandBRX / 2;
-    double expandY = boundingRectangle.getHeight() * this.expandBRY / 2;
+    double expandX = boundingRectangle.getWidth() * this.expandXBR / 2;
+    double expandY = boundingRectangle.getHeight() * this.expandYBR / 2;
     boundingRectangle.expandBy(expandX, expandY);
     LOG.debug("  --  bounding rectangle: " + boundingRectangle);
     Filter bboxFilter = ffilterFactory.bbox(ffilterFactory.property(geometryPropertyName), boundingRectangle);
@@ -275,9 +277,17 @@ public class ColdScan implements Algorithm {
      */
     public static final OptionID MAX_TRAFFIC_ID = new OptionID("coldscan.maxTraffic", "Threshold for maximum of moving objects to identify a cold route.");
 
-    /*
-     * TODO: define field/parameters for BR
+    /**
+     * Parameter to specify the multiplier to expand bounding rectangle in the X axis
+     * Default value 0 (no expand = use bounding box).
      */
+    public static final OptionID EXPAND_X_BR = new OptionID("coldscan.expandXBR", "Multiplier to expand bounding rectangle from neighborhood in the X axis direction (both sides).");
+
+    /**
+     * Parameter to specify the multiplier to expand bounding rectangle in the Y axis
+     * Default value 0 (no expand = use bounding box).
+     */
+    public static final OptionID EXPAND_Y_BR = new OptionID("coldscan.expandYBR", "Multiplier to expand bounding rectangle from neighborhood in the Y axis direction (both sides).");
 
     /**
      * Parameter that specifies the name of the file with the discovered jam routes
@@ -289,7 +299,8 @@ public class ColdScan implements Algorithm {
 
     protected File roadNetworkFile;
     private double maxTraffic;
-  //TODO: define field/parameters for BR
+    private double expandXBR;
+    private double expandYBR;
     private File jamRoutesFile;
 
     @Override
@@ -299,9 +310,17 @@ public class ColdScan implements Algorithm {
       if(config.grab(roadNetworkParameter)) {
         roadNetworkFile = roadNetworkParameter.getValue();
       }
-      DoubleParameter jamSpeemaxTrafficParameter = new DoubleParameter(MAX_TRAFFIC_ID);
-      if(config.grab(jamSpeemaxTrafficParameter)) {
-        maxTraffic = jamSpeemaxTrafficParameter.getValue();
+      DoubleParameter maxTrafficParameter = new DoubleParameter(MAX_TRAFFIC_ID);
+      if(config.grab(maxTrafficParameter)) {
+        maxTraffic = maxTrafficParameter.getValue();
+      }
+      DoubleParameter expandXBRParameter = new DoubleParameter(EXPAND_X_BR, 0);
+      if(config.grab(expandXBRParameter)) {
+        expandXBR = expandXBRParameter.getValue();
+      }
+      DoubleParameter expandYBRParameter = new DoubleParameter(EXPAND_Y_BR, 0);
+      if(config.grab(expandYBRParameter)) {
+        expandYBR = expandYBRParameter.getValue();
       }
       FileParameter jamRoutesFileParameter = new FileParameter(ROAD_JAM_ROUTES_FILE_ID, FileParameter.FileType.INPUT_FILE);
       if(config.grab(jamRoutesFileParameter)) {
@@ -311,7 +330,7 @@ public class ColdScan implements Algorithm {
 
     @Override
     protected ColdScan makeInstance() {
-      return new ColdScan(roadNetworkFile, maxTraffic, jamRoutesFile);
+      return new ColdScan(roadNetworkFile, maxTraffic, expandXBR, expandYBR, jamRoutesFile);
     }
   }
 
