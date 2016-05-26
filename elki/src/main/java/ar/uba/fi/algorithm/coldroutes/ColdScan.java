@@ -23,6 +23,7 @@ import org.opengis.filter.expression.Expression;
 import org.opengis.filter.identity.FeatureId;
 import org.opengis.geometry.BoundingBox;
 
+import ar.uba.fi.algorithm.hotroutes.TrafficSets;
 import ar.uba.fi.result.ColdRoutes;
 import ar.uba.fi.result.JamRoutes;
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -81,6 +82,7 @@ public class ColdScan implements Algorithm {
   private static final Logging LOG = Logging.getLogger(ColdScan.class);
 
   protected RoadNetwork roadNetwork;
+  protected TrafficSets trafficSets;
 
   private double maxTraffic;
 //TODO: define field/parameters for BR -> define parameterization
@@ -105,6 +107,7 @@ public class ColdScan implements Algorithm {
   //TODO: considerar declaracion de signature devolviendo Result del tipo ColdRoutes (en vez de base Result)
   @Override
   public Result run(Database database) {
+    trafficSets = new TrafficSets(database);
     LOG.debug("ColdScan - jam routes file: " + jamRoutesFile); //TODO: tmp for debug test
     Set<String> jamEdgeIds = JamRoutes.parseJamEdgeIds(jamRoutesFile);
     LOG.debug("ColdScan - jamEdgeIds: " + jamEdgeIds); //TODO: tmp for debug test
@@ -130,13 +133,35 @@ public class ColdScan implements Algorithm {
       coldRoutes.jamEdges = jamEdges;
       //TODO: used on incremental verification development
 //      coldRoutes.boundingRectangleEdges = getBoundingRectangleEdges(jamEdges);
-      coldRoutes.neighborhoodBREdges = getNeighborhoodBREdges(jamEdges);
+       SimpleFeatureCollection neighborhoodBREdges = getNeighborhoodBREdges(jamEdges);
+       coldRoutes.neighborhoodBREdges = neighborhoodBREdges;
+       coldRoutes.coldEdges = getColdEdges(neighborhoodBREdges);
 
     } catch (IOException ioException) {
       LOG.error("Exception during bounding rectangle neighborhood processing: " + ioException.getMessage());
     }
 
     return coldRoutes;
+  }
+
+  //TODO: base impl used on incremental verification development (to be extended for vinit)
+  private SimpleFeatureCollection getColdEdges(SimpleFeatureCollection neighborhoodBREdges)
+      throws IOException {
+    DefaultFeatureCollection coldEdges = new DefaultFeatureCollection();
+    SimpleFeatureIterator simpleFeatureIterator =  neighborhoodBREdges.features();
+    try {
+      while (simpleFeatureIterator.hasNext()) {
+        SimpleFeature neighborhoodBREdge = simpleFeatureIterator.next();
+        Set<Integer> traffic = trafficSets.traffic(neighborhoodBREdge.getID());
+        if (traffic.size() <= this.maxTraffic) {
+          coldEdges.add(neighborhoodBREdge);
+        }
+      }
+    }
+    finally {
+      simpleFeatureIterator.close();
+    }
+    return coldEdges;
   }
 
   private SimpleFeatureCollection getJamEdgesFeatureCollection(Set<String> jamEdgeIds)

@@ -65,6 +65,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
   private static final boolean DISPLAY_MAP = true;
   private static final Color JAM_COLOR = new Color(232, 4, 0);
   private static final Color BR_COLOR = new Color(0, 118, 214);
+  private static final Color COLD_COLOR = new Color(56, 150, 30);
 
   /*
   private static final boolean DISPLAY_TRAJECTORIES = false;
@@ -123,7 +124,12 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
     //map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
 
     //TODO: base impl for v3 verification
+    //map.addLayer(createEdgesLayer(coldRoutes.neighborhoodBREdges, featureSource, BR_COLOR, 2));
+    //map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
+
+    //TODO: base impl for v4 verification
     map.addLayer(createEdgesLayer(coldRoutes.neighborhoodBREdges, featureSource, BR_COLOR, 2));
+    map.addLayer(createEdgesLayer(coldRoutes.coldEdges, featureSource, COLD_COLOR, 3));
     map.addLayer(createEdgesLayer(coldRoutes.jamEdges, featureSource, JAM_COLOR, 3));
 
     if (DISPLAY_MAP) {

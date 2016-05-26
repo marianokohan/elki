@@ -40,6 +40,7 @@ public class ColdRoutes extends Routes {
   public SimpleFeatureCollection jamEdges;
   public SimpleFeatureCollection boundingRectangleEdges;
   public SimpleFeatureCollection neighborhoodBREdges;
+  public SimpleFeatureCollection coldEdges;
 
   public ColdRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
