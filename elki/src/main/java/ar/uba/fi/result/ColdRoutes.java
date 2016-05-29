@@ -1,19 +1,12 @@
 package ar.uba.fi.result;
 
-import java.util.Set;
-
-import org.geotools.data.simple.SimpleFeatureCollection;
+import java.util.LinkedList;
+import java.util.List;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
-//TODO: confirm license description
 /*
  This file is developed to be used as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
-
- Copyright (C) 2015
- Ludwig-Maximilians-Universität München
- Lehr- und Forschungseinheit für Datenbanksysteme
- ELKI Development Team
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -35,27 +28,20 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  */
 public class ColdRoutes extends Routes {
 
-  //TODO: tmp initial fields for testing -> create specific class for cold route patterns
-  //public Set<String> jamEdgeIds;
-  public SimpleFeatureCollection jamEdges;
-  public SimpleFeatureCollection boundingRectangleEdges;
-  public SimpleFeatureCollection neighborhoodBREdges;
-  public SimpleFeatureCollection coldEdges;
+  private List<ColdRoute> coldRoutes;
 
   public ColdRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
+    this.coldRoutes = new LinkedList<ColdRoute>();
   }
 
-  //TODO: create specific class for cold route patterns
-  /*
-  public List<JamRoute> getJamRoutes() {
-    return this.jamRoutes;
+  public List<ColdRoute> getColdRoutes() {
+    return this.coldRoutes;
   }
 
-  public void addJamRoute(JamRoute JamRoute) {
-    this.jamRoutes.add(JamRoute);
+  public void addColdRoute(ColdRoute coldRoute) {
+    this.coldRoutes.add(coldRoute);
   }
-  */
 
   @Override
   public String getLongName() {

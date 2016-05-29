@@ -2,6 +2,8 @@ package ar.uba.fi.algorithm.coldroutes;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -14,6 +16,7 @@ import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.filter.identity.FeatureIdImpl;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.graph.structure.DirectedEdge;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
@@ -24,6 +27,7 @@ import org.opengis.filter.identity.FeatureId;
 import org.opengis.geometry.BoundingBox;
 
 import ar.uba.fi.algorithm.hotroutes.TrafficSets;
+import ar.uba.fi.result.ColdRoute;
 import ar.uba.fi.result.ColdRoutes;
 import ar.uba.fi.result.JamRoutes;
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -44,15 +48,9 @@ import de.lmu.ifi.dbs.elki.utilities.optionhandling.OptionID;
 import de.lmu.ifi.dbs.elki.utilities.optionhandling.parameterization.Parameterization;
 import de.lmu.ifi.dbs.elki.utilities.optionhandling.parameters.DoubleParameter;
 import de.lmu.ifi.dbs.elki.utilities.optionhandling.parameters.FileParameter;
-//TODO: confirm license description
 /*
- This file is part of ELKI:
+ This file is developed to be used as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
-
- Copyright (C) 2016
- Ludwig-Maximilians-Universität München
- Lehr- und Forschungseinheit für Datenbanksysteme
- ELKI Development Team
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -85,12 +83,10 @@ public class ColdScan implements Algorithm {
   protected TrafficSets trafficSets;
 
   private double maxTraffic;
-//TODO: define field/parameters for BR -> define parameterization
   private double expandXBR;
   private double expandYBR;
   private File jamRoutesFile;
 
-  //TODO: define parameters for BR
   public ColdScan(File roadNetworkFile, double maxTraffic, double expandXBR, double expandYBR, File jamRoutesFile) {
     this.roadNetwork = RoadNetwork.getInstance(roadNetworkFile); //TODO: cons. separar de constructor <-> ¿demora en GUI al setear parametros?
     this.maxTraffic = maxTraffic;
@@ -108,46 +104,48 @@ public class ColdScan implements Algorithm {
   @Override
   public Result run(Database database) {
     trafficSets = new TrafficSets(database);
-    LOG.debug("ColdScan - jam routes file: " + jamRoutesFile); //TODO: tmp for debug test
     Set<String> jamEdgeIds = JamRoutes.parseJamEdgeIds(jamRoutesFile);
-    LOG.debug("ColdScan - jamEdgeIds: " + jamEdgeIds); //TODO: tmp for debug test
-    /*
-     * TODO: tmp test for debug next elements
-     * ColdScan - jamEdgeIds: [san-francisco_california_osm_line.25204, san-francisco_california_osm_line.24434,  san-francisco_california_osm_line.22765, san-francisco_california_osm_line.22998, san-francisco_california_osm_line.23448, san-francisco_california_osm_line.22631, san-francisco_california_osm_line.23225,  san-francisco_california_osm_line.24641,  san-francisco_california_osm_line.22769,  san-francisco_california_osm_line.25082, san-francisco_california_osm_line.24539, san-francisco_california_osm_line.24344, san-francisco_california_osm_line.25433,  san-francisco_california_osm_line.24890, san-francisco_california_osm_line.24149,  san-francisco_california_osm_line.22670,  san-francisco_california_osm_line.23160, san-francisco_california_osm_line.23019, san-francisco_california_osm_line.23315, san-francisco_california_osm_line.25395, san-francisco_california_osm_line.22840, san-francisco_california_osm_line.22762,  san-francisco_california_osm_line.25203, san-francisco_california_osm_line.22209, san-francisco_california_osm_line.22704, san-francisco_california_osm_line.22626]
-    edge [san-francisco_california_osm_line.22209]
-  --  bounding box: ReferencedEnvelope[-122.4079951 : -122.4078923, 37.7379642 : 37.7387213]
-  --  bounding rectangle: ReferencedEnvelope[-122.40809789999999 : -122.4077895, 37.7372071 : 37.7394784]
-  --  bounding rectangle polygon: POLYGON ((-122.40809789999999 37.7372071, -122.4077895 37.7372071, -122.4077895 37.7394784, -122.40809789999999 37.7394784, -122.40809789999999 37.7372071))
-   -> BR edges: featureCollection
-     */
-    /*
-    Set<String> jamEdgeIds = new HashSet<String>();
-    jamEdgeIds.add("san-francisco_california_osm_line.22209");
-    */
 
     ColdRoutes coldRoutes = new ColdRoutes(roadNetwork);
 
     try {
-      //TODO: tmp fields for incremental development verification
-      SimpleFeatureCollection jamEdges = getJamEdgesFeatureCollection(jamEdgeIds);
-      coldRoutes.jamEdges = jamEdges;
-      //TODO: used on incremental verification development
-//      coldRoutes.boundingRectangleEdges = getBoundingRectangleEdges(jamEdges);
-       SimpleFeatureCollection neighborhoodBREdges = getNeighborhoodBREdges(jamEdges);
-       coldRoutes.neighborhoodBREdges = neighborhoodBREdges;
-       coldRoutes.coldEdges = getColdEdges(neighborhoodBREdges);
-
+      List<DirectedEdge> coldEdges = this.getColdEdges(jamEdgeIds);
+      for(DirectedEdge coldEdge : coldEdges) {
+        ColdRoute coldRoute = new ColdRoute(coldEdge);
+        //TODO: agregar extend: forward, backward
+        coldRoutes.addColdRoute(coldRoute);
+      }
     } catch (IOException ioException) {
-      LOG.error("Exception during bounding rectangle neighborhood processing: " + ioException.getMessage());
+      LOG.error("Exception during cold routes discovery: " + ioException.getMessage());
     }
 
     return coldRoutes;
   }
 
-  //TODO: base impl used on incremental verification development (to be extended for vinit)
-  private SimpleFeatureCollection getColdEdges(SimpleFeatureCollection neighborhoodBREdges)
+  private List<DirectedEdge> getColdEdges(Set<String> jamEdgeIds)
+      throws IOException {
+    List<DirectedEdge> coldEdges = new LinkedList<DirectedEdge>();
+
+    SimpleFeatureCollection coldEdgeFeatures = this.getColdEdgeFeatures(jamEdgeIds);
+    Collection edges = this.roadNetwork.getGraph().getEdges();
+
+    for(Iterator edgesIterator = edges.iterator(); edgesIterator.hasNext();) {
+      DirectedEdge edge = (DirectedEdge) edgesIterator.next();
+      SimpleFeature edgeFeature = ((SimpleFeature)edge.getObject());
+      if (coldEdgeFeatures.contains(edgeFeature)) {
+        coldEdges.add(edge);
+      }
+    }
+
+    return coldEdges;
+  }
+
+  private SimpleFeatureCollection getColdEdgeFeatures(Set<String> jamEdgeIds)
       throws IOException {
     DefaultFeatureCollection coldEdges = new DefaultFeatureCollection();
+
+    SimpleFeatureCollection jamEdges = getJamEdgesFeatures(jamEdgeIds);
+    SimpleFeatureCollection neighborhoodBREdges = getNeighborhoodBREdges(jamEdges);
     SimpleFeatureIterator simpleFeatureIterator =  neighborhoodBREdges.features();
     try {
       while (simpleFeatureIterator.hasNext()) {
@@ -161,10 +159,11 @@ public class ColdScan implements Algorithm {
     finally {
       simpleFeatureIterator.close();
     }
+
     return coldEdges;
   }
 
-  private SimpleFeatureCollection getJamEdgesFeatureCollection(Set<String> jamEdgeIds)
+  private SimpleFeatureCollection getJamEdgesFeatures(Set<String> jamEdgeIds)
           throws IOException {
     FilterFactory2 ffilterFactory = CommonFactoryFinder.getFilterFactory2();
 
@@ -184,7 +183,6 @@ public class ColdScan implements Algorithm {
     try {
       while (simpleFeatureIterator.hasNext()) {
         SimpleFeature edge = simpleFeatureIterator.next();
-        LOG.debug("edge [" + edge.getID() + "]");
         boundingRectangleEdges = getBoundingRectangleEdges(edge);
         neighborhoodBREdges.addAll(getDirectionEdges(edge, boundingRectangleEdges));
       }
@@ -195,31 +193,6 @@ public class ColdScan implements Algorithm {
     return neighborhoodBREdges;
   }
 
-  /* TODO: used on incremental verification development
-  private SimpleFeatureCollection getBoundingRectangleEdges(SimpleFeatureCollection edges)
-      throws IOException {
-    DefaultFeatureCollection boundingRectangleEdges = new DefaultFeatureCollection();
-    SimpleFeatureCollection individualBoundingRectangleEdges;
-    SimpleFeatureIterator simpleFeatureIterator =  edges.features();
-    try {
-      //TODO: tmp comment to verify only 1 jam
-      while (simpleFeatureIterator.hasNext()) {
-//        simpleFeatureIterator.hasNext();
-        SimpleFeature edge = simpleFeatureIterator.next();
-        LOG.debug("edge [" + edge.getID() + "]");
-        individualBoundingRectangleEdges = getBoundingRectangleEdges(edge);
-        LOG.debug(" \t -> BR edges: " + individualBoundingRectangleEdges.getID());
-        boundingRectangleEdges.addAll(individualBoundingRectangleEdges);
-      }
-    }
-    finally {
-      simpleFeatureIterator.close();
-    }
-    return boundingRectangleEdges;
-  }
-  */
-
-  //TODO: define other sizes for BR
   private SimpleFeatureCollection getBoundingRectangleEdges(SimpleFeature edge)
         throws IOException {
     SimpleFeatureSource featureSource = this.roadNetwork.getRoadsFeatureSource();
@@ -230,18 +203,14 @@ public class ColdScan implements Algorithm {
     String geometryPropertyName = schema.getGeometryDescriptor().getLocalName();
 
     BoundingBox edgeBoudingBox = edge.getBounds();
-    LOG.debug("  --  bounding box: " + edgeBoudingBox);
     ReferencedEnvelope boundingRectangle = new ReferencedEnvelope(edgeBoudingBox);
-    //TODO: define other sizes for BR -> parameterization
     double expandX = boundingRectangle.getWidth() * this.expandXBR / 2;
     double expandY = boundingRectangle.getHeight() * this.expandYBR / 2;
     boundingRectangle.expandBy(expandX, expandY);
-    LOG.debug("  --  bounding rectangle: " + boundingRectangle);
     Filter bboxFilter = ffilterFactory.bbox(ffilterFactory.property(geometryPropertyName), boundingRectangle);
 
     //better definition according to (Banaei-Kashani et. al., 2011)
-    Polygon boundingRectanglePolygon = JTS.toGeometry(boundingRectangle); //TODO: verify parameters
-    LOG.debug("  --  bounding rectangle polygon: " + boundingRectanglePolygon);
+    Polygon boundingRectanglePolygon = JTS.toGeometry(boundingRectangle);
     Expression centroidFunction = ffilterFactory.function("centroid", ffilterFactory.property(geometryPropertyName));
     Filter brFilter = ffilterFactory.contains(ffilterFactory.literal(boundingRectanglePolygon), centroidFunction);
 
@@ -250,12 +219,12 @@ public class ColdScan implements Algorithm {
     return featureSource.getFeatures(filters);
   }
 
-  private SimpleFeatureCollection getDirectionEdges(SimpleFeature jamEdge, SimpleFeatureCollection edges)
-      throws IOException {
+  private SimpleFeatureCollection getDirectionEdges(SimpleFeature jamEdge, SimpleFeatureCollection edges) {
     DefaultFeatureCollection directionEdges = new DefaultFeatureCollection();
+
     Coordinate[] jamCoordinates = ((MultiLineString)jamEdge.getDefaultGeometry()).getCoordinates();
     double jamAngle = Angle.angle(jamCoordinates[0], jamCoordinates[jamCoordinates.length - 1]);
-    LOG.debug("jam edge [" + jamEdge.getID() + "] - angle: " + jamAngle);
+
     SimpleFeatureIterator simpleFeatureIterator =  edges.features();
     try {
         while (simpleFeatureIterator.hasNext()) {
@@ -263,9 +232,7 @@ public class ColdScan implements Algorithm {
           if (!edge.getID().equals(jamEdge.getID())) {
             Coordinate[] edgeCoordinates = ((MultiLineString)edge.getDefaultGeometry()).getCoordinates();
             double edgeAngle = Angle.angle(edgeCoordinates[0], edgeCoordinates[edgeCoordinates.length - 1]);
-            LOG.debug(" -- br edge [" + edge.getID() + "] - angle: " + edgeAngle);
             double angleDiff = Angle.diff(jamAngle, edgeAngle);
-            LOG.debug(" \t -> angle diff: " + angleDiff);
             if (angleDiff <= Math.PI / 4) {
               directionEdges.add(edge);
             }
