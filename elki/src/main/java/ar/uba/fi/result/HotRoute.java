@@ -132,4 +132,18 @@ public class HotRoute {
     return this.edges.size();
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof HotRoute) {
+      HotRoute otherHotRoute = (HotRoute)obj;
+      return this.edges.equals(otherHotRoute.edges);
+    }
+    return super.equals(obj);
+  }
+
+  @Override
+  public int hashCode() {
+    return this.edges.hashCode();
+  }
+
 }

@@ -58,18 +58,23 @@ public class ColdRoute extends HotRoute {
 
   /**
    * creates a copy of this cold route
-   * with the given edge appended to the end
+   * with the given edge appended to the end/start
+   *  (according to endLocation)
    * and marked as "cold" if applies
    * It should be used instead of the method in {@code HotRoute} class
-   * @param lastEdge
+   * @param newEdge
    * @param isCold
    * @return
    */
-  public ColdRoute copyWithEdge(DirectedEdge lastEdge, boolean isCold) {
+  public ColdRoute copyWithEdge(DirectedEdge newEdge, boolean endLocation, boolean isCold) {
     ColdRoute copyColdRoute = new ColdRoute(this.edges, this.coldEdges);
-    copyColdRoute.edges.add(lastEdge);
+    if (endLocation) {
+      copyColdRoute.edges.add(newEdge);
+    } else {
+      copyColdRoute.edges.add(0, newEdge);
+    }
     if (isCold) {
-      copyColdRoute.coldEdges.add(lastEdge);
+      copyColdRoute.coldEdges.add(newEdge);
     }
     return copyColdRoute;
   }
@@ -115,6 +120,15 @@ public class ColdRoute extends HotRoute {
       }
     }
     return rule.substring(0, rule.length() - 4).toString();
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof ColdRoute) {
+      ColdRoute otherColdRoute = (ColdRoute)obj;
+      return this.edges.equals(otherColdRoute.edges);
+    }
+    return super.equals(obj);
   }
 
 }

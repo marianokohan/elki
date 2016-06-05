@@ -3,6 +3,7 @@ package ar.uba.fi.algorithm.coldroutes;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -77,7 +78,10 @@ import de.lmu.ifi.dbs.elki.utilities.optionhandling.parameters.FileParameter;
 //TODO: tag '@' - min description
 public class ColdScan implements Algorithm {
 
+  private static final double MAX_ANGLE_DIFF = Math.PI / 5;
   private static final Logging LOG = Logging.getLogger(ColdScan.class);
+
+  public static enum EXTEND_DIRECTION { FORWARD, BACKWARD};
 
   protected RoadNetwork roadNetwork;
   protected TrafficSets trafficSets;
@@ -110,16 +114,91 @@ public class ColdScan implements Algorithm {
 
     try {
       List<DirectedEdge> coldEdges = this.getColdEdges(jamEdgeIds);
+      Set<ColdRoute> forwardExtendedColdRoutes = new HashSet<ColdRoute>();
       for(DirectedEdge coldEdge : coldEdges) {
         ColdRoute coldRoute = new ColdRoute(coldEdge);
-        //TODO: agregar extend: forward, backward
-        coldRoutes.addColdRoute(coldRoute);
+        forwardExtendedColdRoutes.addAll(this.extendColdRoute(coldRoute, EXTEND_DIRECTION.FORWARD, coldEdges));
       }
+      Set<ColdRoute> extendedColdRoutes = new HashSet<ColdRoute>();
+      for(ColdRoute forwardExtendedColdRoute : forwardExtendedColdRoutes) {
+        extendedColdRoutes.addAll(this.extendColdRoute(forwardExtendedColdRoute, EXTEND_DIRECTION.BACKWARD, coldEdges));
+      }
+      coldRoutes.addColdRoutes(extendedColdRoutes);
+      LOG.info("ColdScan discovers " + coldRoutes.getColdRoutes().size() + " cold routes");
     } catch (IOException ioException) {
       LOG.error("Exception during cold routes discovery: " + ioException.getMessage());
     }
 
     return coldRoutes;
+  }
+
+  private Set<ColdRoute> extendColdRoute(ColdRoute coldRoute, EXTEND_DIRECTION direction, List<DirectedEdge> coldEdges) {
+    Set<ColdRoute> extendedColdRoutes = new HashSet<ColdRoute>();
+
+    List<ColdRoute> coldRoutesToExtend = new LinkedList<ColdRoute>();
+    coldRoutesToExtend.add(coldRoute);
+    List<ColdRoute> currentColdRoutes;
+
+    while (!coldRoutesToExtend.isEmpty()) {
+      currentColdRoutes = coldRoutesToExtend;
+      coldRoutesToExtend = new LinkedList<ColdRoute>();
+      for(ColdRoute currentColdRoute : currentColdRoutes) {
+        Set<DirectedEdge> coldTrafficReachableEdges = this.getDirectlyColdTrafficReachableEdges(currentColdRoute, direction);
+        if (!coldTrafficReachableEdges.isEmpty()) {
+          for(DirectedEdge coldTrafficReachableEdge : coldTrafficReachableEdges) {
+            boolean addEdgeToEnd = direction.equals(EXTEND_DIRECTION.FORWARD) ? true: false;
+            boolean isColdEdge = coldEdges.contains(coldTrafficReachableEdge)? true: false;
+            ColdRoute extendedColdRoute = currentColdRoute.copyWithEdge(coldTrafficReachableEdge, addEdgeToEnd, isColdEdge);
+            coldRoutesToExtend.add(extendedColdRoute);
+
+          }
+        } else {
+          extendedColdRoutes.add(currentColdRoute);
+        }
+      }
+    }
+    return extendedColdRoutes;
+  }
+
+  private Set<DirectedEdge> getDirectlyColdTrafficReachableEdges(ColdRoute coldRoute, EXTEND_DIRECTION direction) {
+    Set<DirectedEdge> coldTrafficReachableEdges = new HashSet<DirectedEdge>();
+    DirectedEdge currentEdge;
+    List adjacentEdges = null;
+    if (direction.equals(EXTEND_DIRECTION.FORWARD)) {
+      currentEdge = coldRoute.getLastEdge();
+      adjacentEdges = currentEdge.getOutNode().getOutEdges();
+    } else { //EXTEND_DIRECTION.BACKWARD
+      currentEdge = coldRoute.getStartEdge();
+      adjacentEdges = currentEdge.getInNode().getInEdges();
+    }
+    for(Iterator adjacentEdgesIterator = adjacentEdges.iterator(); adjacentEdgesIterator.hasNext();) {
+      DirectedEdge adjacentEdge = (DirectedEdge) adjacentEdgesIterator.next();
+      String adjacentEdgeId = ((SimpleFeature)adjacentEdge.getObject()).getID();
+      Set<Integer> traffic = this.trafficSets.traffic(adjacentEdgeId);
+      if ((traffic.size() <= this.maxTraffic) && (this.sameDirection(currentEdge, adjacentEdge))) {
+        // |traffic(edge)| <= maxTraffic according to the order use to build the cold route
+        if (!this.isRoadNetworkCycle(adjacentEdge, coldRoute)) {
+          coldTrafficReachableEdges.add(adjacentEdge);
+        }
+      }
+    }
+    return coldTrafficReachableEdges;
+  }
+
+  private boolean sameDirection(DirectedEdge currentEdge, DirectedEdge adjacentEdge) {
+    //TODO: consider improvement to avoid recalculate angle multiple times for same edge
+    Coordinate[] currentEdgeCoordinates = ((MultiLineString)((SimpleFeature)currentEdge.getObject()).getDefaultGeometry()).getCoordinates();
+    double currentEdgeAngleAngle = Angle.angle(currentEdgeCoordinates[0], currentEdgeCoordinates[currentEdgeCoordinates.length - 1]);
+
+    Coordinate[] adjacentEdgeCoordinates = ((MultiLineString)((SimpleFeature)adjacentEdge.getObject()).getDefaultGeometry()).getCoordinates();
+    double adjacentEdgeAngle = Angle.angle(adjacentEdgeCoordinates[0], adjacentEdgeCoordinates[adjacentEdgeCoordinates.length - 1]);
+
+    double angleDiff = Angle.diff(currentEdgeAngleAngle, adjacentEdgeAngle);
+    return (angleDiff < MAX_ANGLE_DIFF);
+  }
+
+  private boolean isRoadNetworkCycle(DirectedEdge adjacentEdge, ColdRoute coldRoute) {
+    return coldRoute.contains(adjacentEdge);
   }
 
   private List<DirectedEdge> getColdEdges(Set<String> jamEdgeIds)
@@ -233,7 +312,7 @@ public class ColdScan implements Algorithm {
             Coordinate[] edgeCoordinates = ((MultiLineString)edge.getDefaultGeometry()).getCoordinates();
             double edgeAngle = Angle.angle(edgeCoordinates[0], edgeCoordinates[edgeCoordinates.length - 1]);
             double angleDiff = Angle.diff(jamAngle, edgeAngle);
-            if (angleDiff <= Math.PI / 4) {
+            if (angleDiff < MAX_ANGLE_DIFF) {
               directionEdges.add(edge);
             }
           }

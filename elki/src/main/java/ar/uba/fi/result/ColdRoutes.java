@@ -1,5 +1,6 @@
 package ar.uba.fi.result;
 
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -41,6 +42,10 @@ public class ColdRoutes extends Routes {
 
   public void addColdRoute(ColdRoute coldRoute) {
     this.coldRoutes.add(coldRoute);
+  }
+
+  public void addColdRoutes(Collection<ColdRoute> coldRoutes) {
+    this.coldRoutes.addAll(coldRoutes);
   }
 
   @Override
