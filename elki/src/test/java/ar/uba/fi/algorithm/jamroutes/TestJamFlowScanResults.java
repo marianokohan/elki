@@ -22,13 +22,8 @@ import de.lmu.ifi.dbs.elki.utilities.optionhandling.ParameterException;
 import de.lmu.ifi.dbs.elki.utilities.optionhandling.parameterization.ListParameterization;
 
 /*
- This file is part of ELKI:
+ This file is developed to be used as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
-
- Copyright (C) 2015
- Ludwig-Maximilians-Universität München
- Lehr- und Forschungseinheit für Datenbanksysteme
- ELKI Development Team
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -61,7 +56,7 @@ public class TestJamFlowScanResults extends AbstractSimpleAlgorithmTest implemen
    * @throws ParameterException
    */
   @Test
-  public void testFlowScanGeneratorBrinkhoffResults() {
+  public void testJamFlowScanGeneratorBrinkhoffResults() {
     System.out.println("\nJamFlowscan applied to Brinkhoff (neighborhoods) generated dataset \n------------------------------------------------------------------");
     Database db = makeSimpleDatabase(UNITTEST + "jamflowscan/generators/Brinkhoff_neighborhoods/sanfrancisco_3600_30-1_100__sorted_converted_edges.txt", 1452745);
 
@@ -77,7 +72,7 @@ public class TestJamFlowScanResults extends AbstractSimpleAlgorithmTest implemen
     System.out.println("Parameterization time: " + (endParameterizationTime - startParameterizationTime) + " msecs");
     testParameterizationOk(params);
 
-    // run FlowScan on database
+    // run JamFlowScan on database
     long startJamFlowScanTime = System.currentTimeMillis();
     JamRoutes jamRoutes = (JamRoutes)jamFlowscan.run(db);
     long endJamFlowScanTime = System.currentTimeMillis();
@@ -126,34 +121,34 @@ public class TestJamFlowScanResults extends AbstractSimpleAlgorithmTest implemen
 
     //verify content for jam routes of size 17
     List<String> expectedJamRoutesSize17 = new LinkedList<String>();
-    expectedJamRoutesSize17.add("jam route (17 edges): san-francisco_california_osm_line.7643 -> san-francisco_california_osm_line.6612 -> san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278 -> [END]");
+    expectedJamRoutesSize17.add("jam route (17 edges): san-francisco_california_osm_line.7643 -> san-francisco_california_osm_line.6612 -> san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278");
     testExpectedJamRoutesContent(jamRoutes, 17, false, expectedJamRoutesSize17);
 
     //verify content for jam routes of size 16
     List<String> expectedJamRoutesSize16 = new LinkedList<String>();
-    expectedJamRoutesSize16.add("jam route (16 edges): san-francisco_california_osm_line.6612 -> san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278 -> [END]");
+    expectedJamRoutesSize16.add("jam route (16 edges): san-francisco_california_osm_line.6612 -> san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278");
     testExpectedJamRoutesContent(jamRoutes, 16, false, expectedJamRoutesSize16);
 
     //verify content for jam routes of size 15
     List<String> expectedJamRoutesSize15 = new LinkedList<String>();
-    expectedJamRoutesSize15.add("jam route (15 edges): san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278 -> [END]");
+    expectedJamRoutesSize15.add("jam route (15 edges): san-francisco_california_osm_line.3706 -> san-francisco_california_osm_line.2406 -> san-francisco_california_osm_line.2326 -> san-francisco_california_osm_line.1059 -> san-francisco_california_osm_line.852 -> san-francisco_california_osm_line.734 -> san-francisco_california_osm_line.575 -> san-francisco_california_osm_line.567 -> san-francisco_california_osm_line.549 -> san-francisco_california_osm_line.430 -> san-francisco_california_osm_line.403 -> san-francisco_california_osm_line.360 -> san-francisco_california_osm_line.346 -> san-francisco_california_osm_line.336 -> san-francisco_california_osm_line.278");
     testExpectedJamRoutesContent(jamRoutes, 15, false, expectedJamRoutesSize15);
 
     //verify content for jam routes with jams of size 6
     List<String> expectedJamRoutesWithJamsSize6 = new LinkedList<String>();
-    expectedJamRoutesWithJamsSize6.add("jam route (6 edges): san-francisco_california_osm_line.34285 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM) -> san-francisco_california_osm_line.29372 -> san-francisco_california_osm_line.26335 (JAM) -> [END]");
+    expectedJamRoutesWithJamsSize6.add("jam route (6 edges): san-francisco_california_osm_line.34285 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM) -> san-francisco_california_osm_line.29372 -> san-francisco_california_osm_line.26335 (JAM)");
     testExpectedJamRoutesContent(jamRoutes, 6, true, expectedJamRoutesWithJamsSize6);
 
     //verify content for jam routes with jams of size 5
     List<String> expectedJamRoutesWithJamsSize5 = new LinkedList<String>();
-    expectedJamRoutesWithJamsSize5.add("jam route (5 edges): san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM) -> san-francisco_california_osm_line.29372 -> san-francisco_california_osm_line.26335 (JAM) -> [END]");
+    expectedJamRoutesWithJamsSize5.add("jam route (5 edges): san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM) -> san-francisco_california_osm_line.29372 -> san-francisco_california_osm_line.26335 (JAM)");
     testExpectedJamRoutesContent(jamRoutes, 5, true, expectedJamRoutesWithJamsSize5);
 
     //verify content for jam routes with jams of size 4
     List<String> expectedJamRoutesWithJamsSize4 = new LinkedList<String>();
-    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.29517 (JAM) -> san-francisco_california_osm_line.32409 (JAM) -> san-francisco_california_osm_line.33217 -> san-francisco_california_osm_line.33409 -> [END]");
-    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.35624 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM) -> [END]");
-    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.35624 -> san-francisco_california_osm_line.34285 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> [END]");
+    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.29517 (JAM) -> san-francisco_california_osm_line.32409 (JAM) -> san-francisco_california_osm_line.33217 -> san-francisco_california_osm_line.33409");
+    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.35624 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM) -> san-francisco_california_osm_line.29514 (JAM)");
+    expectedJamRoutesWithJamsSize4.add("jam route (4 edges): san-francisco_california_osm_line.35624 -> san-francisco_california_osm_line.34285 -> san-francisco_california_osm_line.32403 -> san-francisco_california_osm_line.29819 (JAM)");
     testExpectedJamRoutesContent(jamRoutes, 4, true, expectedJamRoutesWithJamsSize4);
 
   }
