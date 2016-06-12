@@ -8,3 +8,5 @@ tutorial.outlier.SimpleScoreDumper
 # 2016-04-10: Routes implementations classes
 ar.uba.fi.visualization.geo.HotRoutesVisualizer
 ar.uba.fi.visualization.geo.JamRoutesVisualizer
+# 2016-06-12: cold routes implementation class
+ar.uba.fi.visualization.geo.ColdRoutesVisualizer

@@ -151,3 +151,5 @@ tutorial.outlier.ODIN
 # 2016-04-10: Routes implementations classes
 ar.uba.fi.algorithm.hotroutes.FlowScan
 ar.uba.fi.algorithm.jamroutes.JamFlowScan
+# 2016-06-12: cold routes implementation class
+ar.uba.fi.algorithm.coldroutes.ColdScan
