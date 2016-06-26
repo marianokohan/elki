@@ -43,7 +43,7 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
 public class HotRoute {
 
   //internal parameterization
-  protected static final boolean LOG_RULE_EDGES = true;
+  protected static final boolean LOG_RULE_EDGES = false;
   protected StringBuffer debugRule;
 
   private static final Logging LOG = Logging.getLogger(HotRoute.class);

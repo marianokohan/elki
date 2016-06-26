@@ -44,7 +44,7 @@ public class Speeds {
 
   private static final Logging LOG = Logging.getLogger(Speeds.class);
   //internal parameterization
-  protected static final boolean LOG_SPEED_STATS = false;
+  protected static final boolean LOG_SPEED_STATS = true;
 
   private Map<Integer, Speed> edgeSpeedMap;
 
