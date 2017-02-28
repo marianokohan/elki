@@ -13,15 +13,19 @@ import org.geotools.data.FileDataStore;
 import org.geotools.data.FileDataStoreFinder;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.FeatureCollection;
+import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.graph.build.GraphGenerator;
 import org.geotools.graph.build.feature.FeatureGraphGenerator;
 import org.geotools.graph.build.line.DirectedLineStringGraphGenerator;
 import org.geotools.graph.structure.Graph;
+import org.geotools.referencing.GeodeticCalculator;
 import org.geotools.util.NullProgressListener;
 import org.opengis.feature.Feature;
 import org.opengis.feature.FeatureVisitor;
 import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.TransformException;
 
 import com.vividsolutions.jts.geom.Coordinate;
 import com.vividsolutions.jts.geom.Envelope;
@@ -68,6 +72,8 @@ public class RoadNetwork {
   private Graph roadNetworkGraph;
   int processedEdges;
   private String edgeFeaturePrefix;
+  private CoordinateReferenceSystem crs;
+  private GeodeticCalculator geodeticCalculator;
 
   private static Map<File, RoadNetwork> roadNetworkInstanceMap;
 
@@ -105,6 +111,7 @@ public class RoadNetwork {
 
     initEdgesIndexAndPrefix(features);
     initGraph(features);
+    initGeodeticCalculator();
   }
 
   private void initEdgesIndexAndPrefix(FeatureCollection features) {
@@ -158,6 +165,11 @@ public class RoadNetwork {
       de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
     }
     roadNetworkGraph = generator.getGraph();
+  }
+
+  private void initGeodeticCalculator() {
+    this.crs = this.getRoadsFeatureSource().getSchema().getCoordinateReferenceSystem();
+    this.geodeticCalculator = new GeodeticCalculator(crs);
   }
 
   private boolean isRoad(SimpleFeature simpleFeature) {
@@ -221,6 +233,12 @@ public class RoadNetwork {
     return minDistanceEdge;
   }
 
+  public double calculateDistance(Coordinate startPoint, Coordinate endPoint) throws TransformException {
+    geodeticCalculator.setStartingPosition(JTS.toDirectPosition(startPoint, crs));
+    geodeticCalculator.setDestinationPosition(JTS.toDirectPosition(endPoint, crs));
+    return geodeticCalculator.getOrthodromicDistance();
+  }
+
   /**
    * @deprecated
    * use getRoadsFeatureSource instead to obtain only the Features specific to roads
@@ -266,13 +284,62 @@ public class RoadNetwork {
   /**
    * created to verify the procesing of only "roads" from shapefile
    * @param args
+   * @throws TransformException
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws TransformException {
     //TODO: better handling of parameters
     File roadNetworkFile = new File(args[0]);
     RoadNetwork roadNetwork = new RoadNetwork(roadNetworkFile);
     System.out.println("road network graph with " + roadNetwork.getGraph().getNodes().size() + " nodes and " + roadNetwork.getGraph().getEdges().size() + " edges.");
     System.out.println("processed " + roadNetwork.processedEdges + " edges");
+    /*
+     * calculo distancias - uso crawadad 'epfl/mobility/'
+     * formato: '[latitude, longitude, occupancy, time]'
+     * cab 'abboip'
+     * 37.75134 -122.39488 0 1213084687
+     * 37.75136 -122.39527 0 1213084659
+     * calculo verif (http://www.cactus2000.de/uk/unit/massgrk.shtml): 3.4442e-2 km en  WGS84-ellipsoid
+     */
+    Coordinate startPoint =  new Coordinate( -122.39488, 37.75134);
+    Coordinate endPoint =  new Coordinate( -122.39527, 37.75136);
+    double distance = roadNetwork.calculateDistance(startPoint, endPoint);
+    System.out.println("distance (" + startPoint + ", " + endPoint + "):" + distance);
+    /*
+     * 37.75134 -122.39488 0 1213084687
+     * 37.76211 -122.4289 0 1212011260
+     * calculo verif (http://www.cactus2000.de/uk/unit/massgrk.shtml): 3.2274 km en  WGS84-ellipsoid
+     */
+    startPoint =  new Coordinate( -122.39488, 37.75134);
+    endPoint =  new Coordinate( -122.4289, 37.76211);
+    distance = roadNetwork.calculateDistance(startPoint, endPoint);
+    System.out.println("distance (" + startPoint + ", " + endPoint + "):" + distance);
+    /*
+     * 37.76211 -122.4289 0 1212011260
+     * 37.75153 -122.39447 0 1211033530
+     * calculo verif (http://www.cactus2000.de/uk/unit/massgrk.shtml): 3.2534 km en  WGS84-ellipsoid
+     */
+    startPoint =  new Coordinate( -122.4289, 37.76211);
+    endPoint =  new Coordinate(-122.39447, 37.75153);
+    distance = roadNetwork.calculateDistance(startPoint, endPoint);
+    System.out.println("distance (" + startPoint + ", " + endPoint + "):" + distance);
+    /*
+     * 37.75134 -122.39488 0 1213084687
+     * 37.75153 -122.39447 0 1211033530
+     * calculo verif (http://www.cactus2000.de/uk/unit/massgrk.shtml): 4.1836e-2 km en  WGS84-ellipsoid
+     */
+    startPoint =  new Coordinate( -122.39488, 37.75134);
+    endPoint =  new Coordinate(-122.39447, 37.75153);
+    distance = roadNetwork.calculateDistance(startPoint, endPoint);
+    System.out.println("distance (" + startPoint + ", " + endPoint + "):" + distance);
+    /*
+     * 37.76928 -122.42242 0 1212739126
+     * 37.76944 -122.42642 0 1212733195
+     * calculo verif (http://www.cactus2000.de/uk/unit/massgrk.shtml): 0.35287 km en  WGS84-ellipsoid
+     */
+    startPoint =  new Coordinate( -122.42242, 37.76928);
+    endPoint =  new Coordinate(-122.42642, 37.76944);
+    distance = roadNetwork.calculateDistance(startPoint, endPoint);
+    System.out.println("distance (" + startPoint + ", " + endPoint + "):" + distance);
   }
 
 }
