@@ -1,21 +1,39 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Rectangle2D;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import javax.swing.JButton;
+import javax.swing.JToolBar;
+
+import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
+import org.geotools.geojson.feature.FeatureJSON;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
+import org.geotools.swing.event.MapMouseEvent;
+import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
+import org.opengis.feature.type.GeometryDescriptor;
+import org.opengis.filter.Filter;
 
 import ar.uba.fi.result.JamRoute;
 import ar.uba.fi.result.JamRoutes;
@@ -92,50 +110,172 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       displayTrajectories(jamRoutes, database);
     else
       displayJamRoutes(jamRoutes, database);
-      logJamRoutesFile(jamRoutes);
+    logJamRoutesFile(jamRoutes);
   }
 
-  private void displayJamRoutes(JamRoutes jamRoutes, Database database) {
-    SimpleFeatureSource featureSource = jamRoutes.getRoadNetwork().getRoadsFeatureSource();
+  private void displayJamRoutes(final JamRoutes jamRoutes, Database database) {
+    final SimpleFeatureSource featureSource = jamRoutes.getRoadNetwork().getRoadsFeatureSource();
+    MapContent map = createMapContent(jamRoutes, database, featureSource);
 
+    if (DISPLAY_MAP) {
+      mapFrame = new JMapFrame(map);
+      //mapFrame.enableLayerTable(true); //to allow select and edit layers
+      mapFrame.enableToolBar(true);
+      mapFrame.enableStatusBar(true);
+
+      JToolBar toolBar = mapFrame.getToolBar();
+      JButton btn = new JButton("Map selected");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+          mapFrame.getMapPane().setCursorTool(
+              new CursorTool() {
+                  @Override
+                  public void onMouseClicked(MapMouseEvent ev) {
+                      selectFeatures(ev, featureSource, jamRoutes);
+                  }
+              });
+          }
+      });
+
+      btn = new JButton("Map area");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+              mapFeatures(featureSource, jamRoutes);
+          }
+      });
+
+      mapFrame.setSize(800, 600);
+      mapFrame.setVisible(true);
+    }
+  }
+
+  private MapContent createMapContent(final JamRoutes jamRoutes, Database database, final SimpleFeatureSource featureSource) {
     MapContent map = new MapContent();
     map.setTitle(jamRoutes.getLongName());
 
     map.addLayer(createRoadNetworkLayer(featureSource));
+
     if (DISPLAY_TRAJECTORIES)
       map.addLayer(createTrajectoriesLayer(featureSource, database));
 
-    List<Point> jamRouteStartPoints = new LinkedList<Point>();
-    List<Point> jamRouteEndPoints = new LinkedList<Point>();
-    DefaultFeatureCollection jamRouteEdges = new DefaultFeatureCollection();
-    DefaultFeatureCollection jamRouteJamEdges = new DefaultFeatureCollection();
-    for(JamRoute jamRoute : jamRoutes.getJamRoutes()) {
-      if (jamRoute.getLength() >= MIN_JAM_ROUTE_EDGES) {
-        List<SimpleFeature>[] jamRouteEdgeFeatures = jamRoute.getEdgeWithJamsFeatures();
-        if ( ((DISPLAY_ONLY_ROUTES_WITH_JAMS && (jamRouteEdgeFeatures[1].size() > 0))) || (!DISPLAY_ONLY_ROUTES_WITH_JAMS)) {
-          jamRouteEdges.addAll(jamRouteEdgeFeatures[0]);
-          jamRouteJamEdges.addAll(jamRouteEdgeFeatures[1]);
-          jamRouteStartPoints.add(jamRoute.getStartPoint());
-          jamRouteEndPoints.add(jamRoute.getEndPoint());
-        }
-      }
-    }
-
-    if (jamRouteEdges.size() > 0) {
-      map.addLayer(createEdgesLayer(jamRouteEdges, featureSource, JAM_ROUTE_COLOR, 3));
+    Map<String, SimpleFeatureCollection> jamRoutesFeatures = extractFeatures(jamRoutes.getJamRoutes());
+    if (jamRoutesFeatures.containsKey("EDGES")) {
+      map.addLayer(createEdgesLayer(jamRoutesFeatures.get("EDGES"), featureSource, JAM_ROUTE_COLOR, 3));
     } else {
       System.out.println("only edges with jams ?!?");
     }
-    if (jamRouteJamEdges.size() > 0) {
-      map.addLayer(createEdgesLayer(jamRouteJamEdges, featureSource, JAM_ROUTE_JAM_COLOR, 4));
+    if (jamRoutesFeatures.containsKey("JAMS")) {
+      map.addLayer(createEdgesLayer(jamRoutesFeatures.get("JAMS"), featureSource, JAM_ROUTE_JAM_COLOR, 4));
     } else {
       System.out.println("no edges with jams");
     }
-    map.addLayer(createPointsLayer(jamRouteStartPoints, featureSource, PointPositionType.START, JAM_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(jamRouteEndPoints, featureSource, PointPositionType.END, JAM_ROUTE_POINT_COLOR, 8));
+    map.addLayer(createPointsLayer(jamRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, JAM_ROUTE_POINT_COLOR, 5));
+    map.addLayer(createPointsLayer(jamRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, JAM_ROUTE_POINT_COLOR, 8));
+    return map;
+  }
 
-    if (DISPLAY_MAP) {
-      JMapFrame.showMap(map);
+  private Map<String, SimpleFeatureCollection> extractFeatures(List<JamRoute> jamRoutes) {
+    Map<String, SimpleFeatureCollection> jamRoutesFeatures = new HashMap<String, SimpleFeatureCollection>();
+    if (!jamRoutes.isEmpty()) {
+      List<Point> jamRouteStartPointsList = new LinkedList<Point>();
+      List<Point> jamRouteEndPointsList = new LinkedList<Point>();
+      DefaultFeatureCollection jamRouteEdges = new DefaultFeatureCollection();
+      DefaultFeatureCollection jamRouteJamEdges = new DefaultFeatureCollection();
+      for(JamRoute jamRoute : jamRoutes) {
+        if (jamRoute.getLength() >= MIN_JAM_ROUTE_EDGES) {
+          List<SimpleFeature>[] jamRouteEdgeFeatures = jamRoute.getEdgeWithJamsFeatures();
+          if ( ((DISPLAY_ONLY_ROUTES_WITH_JAMS && (jamRouteEdgeFeatures[1].size() > 0))) || (!DISPLAY_ONLY_ROUTES_WITH_JAMS)) {
+            jamRouteEdges.addAll(jamRouteEdgeFeatures[0]);
+            jamRouteJamEdges.addAll(jamRouteEdgeFeatures[1]);
+            jamRouteStartPointsList.add(jamRoute.getStartPoint());
+            jamRouteEndPointsList.add(jamRoute.getEndPoint());
+          }
+        }
+      }
+      if (!jamRouteEdges.isEmpty()) {
+        jamRoutesFeatures.put("EDGES", jamRouteEdges);
+      }
+      if (!jamRouteJamEdges.isEmpty()) {
+        jamRoutesFeatures.put("JAMS", jamRouteJamEdges);
+      }
+      jamRoutesFeatures.put("STARTS", this.createPointFeatureCollection(jamRouteStartPointsList));
+      jamRoutesFeatures.put("ENDS", this.createPointFeatureCollection(jamRouteEndPointsList));
+    }
+    return jamRoutesFeatures;
+  }
+
+  /**
+   * This method is called by our feature selection tool when
+   * the user has clicked on the map.
+   *
+   * @param ev the mouse event being handled
+   */
+  void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
+      //Construct a 5x5 pixel rectangle centred on the mouse click position
+      java.awt.Point screenPos = ev.getPoint();
+      Rectangle screenRect = new Rectangle(screenPos.x-2, screenPos.y-2, 5, 5);
+      /*
+       * Transform the screen rectangle into bounding box in the coordinate
+       * reference system of our map context. Note: we are using a naive method
+       * here but GeoTools also offers other, more accurate methods.
+       */
+      AffineTransform screenToWorld = mapFrame.getMapPane().getScreenToWorldTransform();
+      Rectangle2D worldRect = screenToWorld.createTransformedShape(screenRect).getBounds2D();
+      ReferencedEnvelope bbox = new ReferencedEnvelope(
+              worldRect,
+              mapFrame.getMapContent().getCoordinateReferenceSystem());
+      SimpleFeatureCollection selectedFeatures = filterFeaturesInBox(bbox, featureSource);
+
+      List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+      Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedJamRoutes);
+      exportJamRoutesGeoJson(selectedJamRoutesFeatures);
+  }
+
+  void mapFeatures(SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
+      ReferencedEnvelope bounds = mapFrame.getMapContent().getViewport().getBounds();
+      SimpleFeatureCollection selectedFeatures = filterFeaturesInBox(bounds, featureSource);
+
+      List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+      Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
+      exportJamRoutesGeoJson(mapJamRoutesFeatures);
+  }
+
+  private SimpleFeatureCollection filterFeaturesInBox(ReferencedEnvelope box, SimpleFeatureSource featureSource) {
+    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
+    String geometryAttributeName = geomDescriptor.getLocalName();
+    Filter filter = filterFactory.intersects(filterFactory.property(geometryAttributeName), filterFactory.literal(box));
+
+    SimpleFeatureCollection selectedFeatures = null;
+    try {
+        selectedFeatures = featureSource.getFeatures(filter);
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
+    return selectedFeatures;
+  }
+
+  private void exportJamRoutesGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {
+    if (jamRoutesFeatures.containsKey("EDGES"))
+      exportToGeoJson(jamRoutesFeatures.get("EDGES"), "jam_routes_edges.json");
+    if (jamRoutesFeatures.containsKey("JAMS"))
+      exportToGeoJson(jamRoutesFeatures.get("JAMS"), "jam_routes_jams.json");
+    exportToGeoJson(jamRoutesFeatures.get("STARTS"), "jam_routes_starts.json");
+    exportToGeoJson(jamRoutesFeatures.get("ENDS"), "jam_routes_ends.json");
+  }
+
+  private void exportToGeoJson(SimpleFeatureCollection features, String fileName) {
+    Path jamRoutesGeoJsonPath = FileSystems.getDefault().getPath(fileName);
+    try (OutputStream geoJsonStream = Files.newOutputStream(jamRoutesGeoJsonPath)) {
+      FeatureJSON geojson = new FeatureJSON();
+      geojson.writeFeatureCollection(features, geoJsonStream);
+    } catch (IOException ioException) {
+        System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
     }
   }
 

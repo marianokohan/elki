@@ -89,6 +89,9 @@ public class RoutesVisualizer {
 
   private static final Color TRAJECTORY_COLOR = new Color(50, 100, 228);
   static final Logging LOG = Logging.getLogger(RoutesVisualizer.class);
+  protected StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
+  protected FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+  protected JMapFrame mapFrame;
 
   public RoutesVisualizer() {
     super();
@@ -469,9 +472,25 @@ public class RoutesVisualizer {
    *************************************/
 
   protected FeatureLayer createEdgesLayer(SimpleFeatureCollection edges, SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
-    StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
-    FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
+    Rule rules[] = {createLineStyleRule(featureSource, strokeColor, strokeWitdh)};
+    return createLayer(edges, rules);
+  }
 
+  protected FeatureLayer createPointsLayer(SimpleFeatureCollection points, SimpleFeatureSource featureSource, PointPositionType markType, Color markColor, int markSize) {
+    Rule rules[] = {createPointStyleRule(featureSource, markType, markColor, markSize)};
+    return createLayer(points, rules);
+  }
+
+  private FeatureLayer createLayer(SimpleFeatureCollection features, Rule[] rules) {
+    FeatureTypeStyle featureTypeStyle = styleFactory.createFeatureTypeStyle(rules);
+    Style style = styleFactory.createStyle();
+    style.featureTypeStyles().add(featureTypeStyle);
+
+    FeatureLayer featureLayer = new FeatureLayer(features, style);
+    return featureLayer;
+  }
+
+  protected Rule createLineStyleRule(SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
     Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
             filterFactory.literal(strokeWitdh));
 
@@ -481,35 +500,10 @@ public class RoutesVisualizer {
 
     Rule lineRule = styleFactory.createRule();
     lineRule.symbolizers().add(lineSymbolizer);
-    Rule rules[] = {lineRule};
-    FeatureTypeStyle featureTypeStyle = styleFactory.createFeatureTypeStyle(rules);
-    Style lineStyle = styleFactory.createStyle();
-    lineStyle.featureTypeStyles().add(featureTypeStyle);
-
-    FeatureLayer featureLayer = new FeatureLayer(edges, lineStyle);
-    return featureLayer;
+    return lineRule;
   }
 
-  protected FeatureLayer createPointsLayer(List<Point> points, SimpleFeatureSource featureSource, PointPositionType markType, Color markColor, int markSize) {
-    DefaultFeatureCollection pointsFeatureCollection = new DefaultFeatureCollection();
-    for (Geometry point : points)
-    {
-        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
-        builder.setName("Trajectory");
-        builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
-        builder.add("the_geom", Point.class);
-        builder.length(15).add("Name", String.class); // 15 chars width for name field
-        SimpleFeatureType pointType = builder.buildFeatureType();
-
-        SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
-        simpleFeatureBuilder.add(point);
-        SimpleFeature pointFeature = simpleFeatureBuilder.buildFeature(null);
-
-        pointsFeatureCollection.add(pointFeature);
-    }
-
-    StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
-    FilterFactory filterFactory = CommonFactoryFinder.getFilterFactory2();
+  protected Rule createPointStyleRule(SimpleFeatureSource featureSource, PointPositionType markType, Color markColor, int markSize) {
     Fill markFill = styleFactory.createFill(filterFactory.literal(markColor));
     Mark pointMark;
     switch (markType) {
@@ -536,13 +530,27 @@ public class RoutesVisualizer {
 
     Rule pointRule = styleFactory.createRule();
     pointRule.symbolizers().add(pointSymbolizer);
-    Rule rules[] = {pointRule};
-    FeatureTypeStyle featureTypeStyle = styleFactory.createFeatureTypeStyle(rules);
-    Style pointStyle = styleFactory.createStyle();
-    pointStyle.featureTypeStyles().add(featureTypeStyle);
+    return pointRule;
+  }
 
-    FeatureLayer featureLayer = new FeatureLayer(pointsFeatureCollection, pointStyle);
-    return featureLayer;
+  public DefaultFeatureCollection createPointFeatureCollection(List<Point> points) {
+    DefaultFeatureCollection pointsFeatureCollection = new DefaultFeatureCollection();
+    for (Geometry point : points)
+    {
+        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
+        builder.setName("Trajectory");
+        builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
+        builder.add("the_geom", Point.class);
+        builder.length(15).add("Name", String.class); // 15 chars width for name field
+        SimpleFeatureType pointType = builder.buildFeatureType();
+
+        SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
+        simpleFeatureBuilder.add(point);
+        SimpleFeature pointFeature = simpleFeatureBuilder.buildFeature(null);
+
+        pointsFeatureCollection.add(pointFeature);
+    }
+    return pointsFeatureCollection;
   }
 
 }

@@ -105,8 +105,8 @@ public class HotRoutesVisualizer extends RoutesVisualizer implements ResultHandl
     }
 
     map.addLayer(createEdgesLayer(hotRouteEdges, featureSource, HOT_ROUTE_COLOR, 3));
-    map.addLayer(createPointsLayer(hotRouteStartPoints, featureSource, PointPositionType.START, HOT_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(hotRouteEndPoints, featureSource, PointPositionType.END, HOT_ROUTE_POINT_COLOR, 8));
+    map.addLayer(createPointsLayer(this.createPointFeatureCollection(hotRouteStartPoints), featureSource, PointPositionType.START, HOT_ROUTE_POINT_COLOR, 5));
+    map.addLayer(createPointsLayer(this.createPointFeatureCollection(hotRouteEndPoints), featureSource, PointPositionType.END, HOT_ROUTE_POINT_COLOR, 8));
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);

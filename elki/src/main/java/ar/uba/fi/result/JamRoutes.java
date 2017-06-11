@@ -10,6 +10,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.opengis.feature.simple.SimpleFeature;
+
 import ar.uba.fi.roadnetwork.RoadNetwork;
 //TODO: confirm license description
 /*
@@ -84,6 +88,25 @@ public class JamRoutes extends Routes {
       System.err.format("IOException on parsing jam routes from file %s: %s%n", jamRoutesFile, ioException);
     }
     return jamEdgeIds;
+  }
+
+  public List<JamRoute> filterJamRouteWithEdges(SimpleFeatureCollection edges, boolean jamRoutesWithJams) {
+    List<JamRoute> jamRoutesWithEdges = new LinkedList<JamRoute>();
+    for(JamRoute jamRoute : this.jamRoutes) {
+      if ( (jamRoutesWithJams && jamRoute.containsJams()) ||
+          (!jamRoutesWithJams) ){
+        try (SimpleFeatureIterator iter = edges.features()) {
+          while (iter.hasNext()) {
+              SimpleFeature edgeFeature = iter.next();
+              if (jamRoute.containsEdgeFeature(edgeFeature)) {
+                jamRoutesWithEdges.add(jamRoute);
+                break; //TODO: improve to avoid iterate this.jamRoutes
+              }
+          }
+        }
+      }
+    }
+    return jamRoutesWithEdges;
   }
 
 }

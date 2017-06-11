@@ -101,8 +101,8 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
     } else {
       System.out.println("no cold traffic edges => no cold routes");
     }
-    map.addLayer(createPointsLayer(coldRouteStartPoints, featureSource, PointPositionType.START, COLD_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(coldRouteEndPoints, featureSource, PointPositionType.END, COLD_ROUTE_POINT_COLOR, 8));
+    map.addLayer(createPointsLayer(this.createPointFeatureCollection(coldRouteStartPoints), featureSource, PointPositionType.START, COLD_ROUTE_POINT_COLOR, 5));
+    map.addLayer(createPointsLayer(this.createPointFeatureCollection(coldRouteEndPoints), featureSource, PointPositionType.END, COLD_ROUTE_POINT_COLOR, 8));
 
     if (DISPLAY_MAP) {
       JMapFrame.showMap(map);
