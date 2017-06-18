@@ -146,4 +146,14 @@ public class HotRoute {
     return this.edges.hashCode();
   }
 
+  public boolean containsEdgeFeature(SimpleFeature edgeFeature) {
+    for(DirectedEdge directedEdge : edges) {
+      SimpleFeature feature = (SimpleFeature)directedEdge.getObject();
+      if (feature.equals(edgeFeature)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 }

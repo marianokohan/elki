@@ -1,20 +1,34 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
+import javax.swing.JButton;
+import javax.swing.JToolBar;
+
+import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
+import org.geotools.swing.event.MapMouseEvent;
+import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
 
 import ar.uba.fi.result.ColdRoute;
 import ar.uba.fi.result.ColdRoutes;
+import ar.uba.fi.result.JamRoute;
+import ar.uba.fi.result.JamRoutes;
+import ar.uba.fi.visualization.geo.RoutesVisualizer.PointPositionType;
 
 import com.vividsolutions.jts.geom.Point;
 
+import de.lmu.ifi.dbs.elki.database.Database;
 import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase;
 import de.lmu.ifi.dbs.elki.logging.Logging;
 import de.lmu.ifi.dbs.elki.result.BasicResult;
@@ -49,7 +63,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
   private static final boolean DISPLAY_MAP = true;
   private static final Color COLD_ROUTE_COLD_TRAFFIC_COLOR = new Color(56, 150, 30);
   private static final Color COLD_ROUTE_COLOR = new Color(0, 118, 214);
-  private static final Color COLD_ROUTE_POINT_COLOR = new Color(204, 197, 0);
+  private static final Color COLD_ROUTE_POINT_COLOR = new Color(153,76, 0);
 
   static final Logging LOG = Logging.getLogger(ColdRoutesVisualizer.class);
 
@@ -68,45 +82,126 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
         coldRoutes = (ColdRoutes) result;
       }
     }
-    displayColdRoutes(coldRoutes);
+    displayColdRoutes(coldRoutes, database);
   }
 
-  private void displayColdRoutes(ColdRoutes coldRoutes) {
-    SimpleFeatureSource featureSource = coldRoutes.getRoadNetwork().getRoadsFeatureSource();
+  private void displayColdRoutes(final ColdRoutes coldRoutes, Database database) {
+    final SimpleFeatureSource featureSource = coldRoutes.getRoadNetwork().getRoadsFeatureSource();
 
+    MapContent map = createMapContent(coldRoutes, database, featureSource);
+
+    mapFrame = new JMapFrame(map);
+    //mapFrame.enableLayerTable(true); //to allow select and edit layers
+    mapFrame.enableToolBar(true);
+    mapFrame.enableStatusBar(true);
+
+    JToolBar toolBar = mapFrame.getToolBar();
+    JButton btn = new JButton("Map selected");
+    toolBar.addSeparator();
+    toolBar.add(btn);
+    btn.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        mapFrame.getMapPane().setCursorTool(
+            new CursorTool() {
+                @Override
+                public void onMouseClicked(MapMouseEvent ev) {
+                    selectFeatures(ev, featureSource, coldRoutes);
+                }
+            });
+        }
+    });
+
+    btn = new JButton("Map area");
+    toolBar.addSeparator();
+    toolBar.add(btn);
+    btn.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+            mapFeatures(featureSource, coldRoutes);
+        }
+    });
+
+    mapFrame.setSize(1400, 900);
+    mapFrame.setVisible(true);
+  }
+
+  private MapContent createMapContent(ColdRoutes coldRoutes, Database database, final SimpleFeatureSource featureSource) {
     MapContent map = new MapContent();
     map.setTitle(coldRoutes.getLongName());
 
     map.addLayer(createRoadNetworkLayer(featureSource));
 
-    List<Point> coldRouteStartPoints = new LinkedList<Point>();
-    List<Point> coldRouteEndPoints = new LinkedList<Point>();
-    DefaultFeatureCollection coldRouteEdges = new DefaultFeatureCollection();
-    DefaultFeatureCollection coldRouteColdTrafficEdges = new DefaultFeatureCollection();
-    for(ColdRoute coldRoute : coldRoutes.getColdRoutes()) {
-      List<SimpleFeature>[] coldRouteEdgeFeatures = coldRoute.getEdgeWithColdFeatures();
-      coldRouteEdges.addAll(coldRouteEdgeFeatures[0]);
-      coldRouteColdTrafficEdges.addAll(coldRouteEdgeFeatures[1]);
-      coldRouteStartPoints.add(coldRoute.getStartPoint());
-      coldRouteEndPoints.add(coldRoute.getEndPoint());
-    }
-
-    if (coldRouteEdges.size() > 0) {
-      map.addLayer(createEdgesLayer(coldRouteEdges, featureSource, COLD_ROUTE_COLOR, 3));
+    Map<String, SimpleFeatureCollection> coldRoutesFeatures = extractFeatures(coldRoutes.getColdRoutes());
+    if (coldRoutesFeatures.containsKey("EDGES")) {
+      map.addLayer(createEdgesLayer(coldRoutesFeatures.get("EDGES"), featureSource, COLD_ROUTE_COLOR, 3));
     } else {
       System.out.println("only cold traffic edges");
     }
-    if (coldRouteColdTrafficEdges.size() > 0) {
-      map.addLayer(createEdgesLayer(coldRouteColdTrafficEdges, featureSource, COLD_ROUTE_COLD_TRAFFIC_COLOR, 4));
+    if (coldRoutesFeatures.containsKey("COLD")) {
+      map.addLayer(createEdgesLayer(coldRoutesFeatures.get("COLD"), featureSource, COLD_ROUTE_COLD_TRAFFIC_COLOR, 4));
     } else {
       System.out.println("no cold traffic edges => no cold routes");
     }
-    map.addLayer(createPointsLayer(this.createPointFeatureCollection(coldRouteStartPoints), featureSource, PointPositionType.START, COLD_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(this.createPointFeatureCollection(coldRouteEndPoints), featureSource, PointPositionType.END, COLD_ROUTE_POINT_COLOR, 8));
+    map.addLayer(createPointsLayer(coldRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, COLD_ROUTE_POINT_COLOR, 5));
+    map.addLayer(createPointsLayer(coldRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, COLD_ROUTE_POINT_COLOR, 8));
 
-    if (DISPLAY_MAP) {
-      JMapFrame.showMap(map);
+    return map;
+  }
+
+  private Map<String, SimpleFeatureCollection> extractFeatures(List<ColdRoute> coldRoutes) {
+    Map<String, SimpleFeatureCollection> coldRoutesFeatures = new HashMap<String, SimpleFeatureCollection>();
+    if (!coldRoutes.isEmpty()) {
+      List<Point> coldRouteStartPointsList = new LinkedList<Point>();
+      List<Point> coldRouteEndPointsList = new LinkedList<Point>();
+      DefaultFeatureCollection coldRouteEdges = new DefaultFeatureCollection();
+      DefaultFeatureCollection coldRouteColdTrafficEdges = new DefaultFeatureCollection();
+      for(ColdRoute coldRoute : coldRoutes) {
+        List<SimpleFeature>[] coldRouteEdgeFeatures = coldRoute.getEdgeWithColdFeatures();
+        coldRouteEdges.addAll(coldRouteEdgeFeatures[0]);
+        coldRouteColdTrafficEdges.addAll(coldRouteEdgeFeatures[1]);
+        coldRouteStartPointsList.add(coldRoute.getStartPoint());
+        coldRouteEndPointsList.add(coldRoute.getEndPoint());
+      }
+      if (!coldRouteEdges.isEmpty()) {
+        coldRoutesFeatures.put("EDGES", coldRouteEdges);
+      }
+      if (!coldRouteColdTrafficEdges.isEmpty()) {
+        coldRoutesFeatures.put("COLD", coldRouteColdTrafficEdges);
+      }
+      coldRoutesFeatures.put("STARTS", this.createPointFeatureCollection(coldRouteStartPointsList));
+      coldRoutesFeatures.put("ENDS", this.createPointFeatureCollection(coldRouteEndPointsList));
     }
+    return coldRoutesFeatures;
+  }
+
+  /**
+   * This method is called by our feature selection tool when
+   * the user has clicked on the map.
+   *
+   * @param ev the mouse event being handled
+   */
+  void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, ColdRoutes coldRoutes) {
+      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+      List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
+      Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
+      exportColdRoutesGeoJson(selectedJamRoutesFeatures);
+  }
+
+  void mapFeatures(SimpleFeatureSource featureSource, ColdRoutes coldRoutes) {
+      SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
+      List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
+      Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
+      exportColdRoutesGeoJson(selectedJamRoutesFeatures);
+  }
+
+  private void exportColdRoutesGeoJson(Map<String, SimpleFeatureCollection> coldRoutesFeatures) {
+    if (coldRoutesFeatures.containsKey("EDGES"))
+      exportToGeoJson(coldRoutesFeatures.get("EDGES"), "cold_routes_edges.json");
+    if (coldRoutesFeatures.containsKey("COLD"))
+      exportToGeoJson(coldRoutesFeatures.get("COLD"), "cold_routes_cold_traffic.json");
+    exportToGeoJson(coldRoutesFeatures.get("STARTS"), "cold_routes_starts.json");
+    exportToGeoJson(coldRoutesFeatures.get("ENDS"), "cold_routes_ends.json");
   }
 
 }

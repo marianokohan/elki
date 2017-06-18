@@ -4,6 +4,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.opengis.feature.simple.SimpleFeature;
+
 import ar.uba.fi.roadnetwork.RoadNetwork;
 /*
  This file is developed to be used as part of ELKI:
@@ -56,6 +60,22 @@ public class ColdRoutes extends Routes {
   @Override
   public String getShortName() {
     return "Cold routes";
+  }
+
+  public List<ColdRoute> filterColdRouteWithEdges(SimpleFeatureCollection edges) {
+    List<ColdRoute> coldRoutesWithEdges = new LinkedList<ColdRoute>();
+    for(ColdRoute coldRoute : this.coldRoutes) {
+      try (SimpleFeatureIterator iter = edges.features()) {
+        while (iter.hasNext()) {
+            SimpleFeature edgeFeature = iter.next();
+            if (coldRoute.containsEdgeFeature(edgeFeature)) {
+              coldRoutesWithEdges.add(coldRoute);
+              break;
+            }
+        }
+      }
+    }
+    return coldRoutesWithEdges;
   }
 
 }

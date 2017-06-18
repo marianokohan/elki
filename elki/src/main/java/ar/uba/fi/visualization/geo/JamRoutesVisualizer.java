@@ -1,14 +1,10 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
-import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Rectangle2D;
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.Charset;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -25,15 +21,11 @@ import javax.swing.JToolBar;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
-import org.geotools.geojson.feature.FeatureJSON;
-import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
 import org.geotools.swing.event.MapMouseEvent;
 import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
-import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
 
 import ar.uba.fi.result.JamRoute;
 import ar.uba.fi.result.JamRoutes;
@@ -84,8 +76,8 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
   private static final boolean DISPLAY_MAP = true;
   private static final boolean DISPLAY_TRAJECTORIES = false;
   private static final boolean CREATE_JAM_ROUTES_FILE = true;
-  private static final Color JAM_ROUTE_COLOR = new Color(245, 237, 0);
-  private static final Color JAM_ROUTE_POINT_COLOR = new Color(204, 197, 0);
+  private static final Color JAM_ROUTE_COLOR = new Color(255, 153, 51);
+  private static final Color JAM_ROUTE_POINT_COLOR = new Color(153,76, 0);
   private static final Color JAM_ROUTE_JAM_COLOR = new Color(232, 4, 0);
 
   static final Logging LOG = Logging.getLogger(JamRoutesVisualizer.class);
@@ -150,7 +142,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
           }
       });
 
-      mapFrame.setSize(800, 600);
+      mapFrame.setSize(1400, 900);
       mapFrame.setVisible(true);
     }
   }
@@ -217,47 +209,17 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
    * @param ev the mouse event being handled
    */
   void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
-      //Construct a 5x5 pixel rectangle centred on the mouse click position
-      java.awt.Point screenPos = ev.getPoint();
-      Rectangle screenRect = new Rectangle(screenPos.x-2, screenPos.y-2, 5, 5);
-      /*
-       * Transform the screen rectangle into bounding box in the coordinate
-       * reference system of our map context. Note: we are using a naive method
-       * here but GeoTools also offers other, more accurate methods.
-       */
-      AffineTransform screenToWorld = mapFrame.getMapPane().getScreenToWorldTransform();
-      Rectangle2D worldRect = screenToWorld.createTransformedShape(screenRect).getBounds2D();
-      ReferencedEnvelope bbox = new ReferencedEnvelope(
-              worldRect,
-              mapFrame.getMapContent().getCoordinateReferenceSystem());
-      SimpleFeatureCollection selectedFeatures = filterFeaturesInBox(bbox, featureSource);
-
+      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
       List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedJamRoutes);
       exportJamRoutesGeoJson(selectedJamRoutesFeatures);
   }
 
   void mapFeatures(SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
-      ReferencedEnvelope bounds = mapFrame.getMapContent().getViewport().getBounds();
-      SimpleFeatureCollection selectedFeatures = filterFeaturesInBox(bounds, featureSource);
-
+      SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
       List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
       exportJamRoutesGeoJson(mapJamRoutesFeatures);
-  }
-
-  private SimpleFeatureCollection filterFeaturesInBox(ReferencedEnvelope box, SimpleFeatureSource featureSource) {
-    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
-    String geometryAttributeName = geomDescriptor.getLocalName();
-    Filter filter = filterFactory.intersects(filterFactory.property(geometryAttributeName), filterFactory.literal(box));
-
-    SimpleFeatureCollection selectedFeatures = null;
-    try {
-        selectedFeatures = featureSource.getFeatures(filter);
-    } catch (Exception ex) {
-        ex.printStackTrace();
-    }
-    return selectedFeatures;
   }
 
   private void exportJamRoutesGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {
@@ -267,16 +229,6 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       exportToGeoJson(jamRoutesFeatures.get("JAMS"), "jam_routes_jams.json");
     exportToGeoJson(jamRoutesFeatures.get("STARTS"), "jam_routes_starts.json");
     exportToGeoJson(jamRoutesFeatures.get("ENDS"), "jam_routes_ends.json");
-  }
-
-  private void exportToGeoJson(SimpleFeatureCollection features, String fileName) {
-    Path jamRoutesGeoJsonPath = FileSystems.getDefault().getPath(fileName);
-    try (OutputStream geoJsonStream = Files.newOutputStream(jamRoutesGeoJsonPath)) {
-      FeatureJSON geojson = new FeatureJSON();
-      geojson.writeFeatureCollection(features, geoJsonStream);
-    } catch (IOException ioException) {
-        System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
-    }
   }
 
   private void logJamRoutesFile(JamRoutes jamRoutes) {
