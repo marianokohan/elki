@@ -20,11 +20,9 @@ import org.geotools.swing.event.MapMouseEvent;
 import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
 
+import processing.core.PApplet;
 import ar.uba.fi.result.ColdRoute;
 import ar.uba.fi.result.ColdRoutes;
-import ar.uba.fi.result.JamRoute;
-import ar.uba.fi.result.JamRoutes;
-import ar.uba.fi.visualization.geo.RoutesVisualizer.PointPositionType;
 
 import com.vividsolutions.jts.geom.Point;
 
@@ -186,6 +184,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
       List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
       exportColdRoutesGeoJson(selectedJamRoutesFeatures);
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
   }
 
   void mapFeatures(SimpleFeatureSource featureSource, ColdRoutes coldRoutes) {
@@ -193,6 +192,7 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
       List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
       exportColdRoutesGeoJson(selectedJamRoutesFeatures);
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
   }
 
   private void exportColdRoutesGeoJson(Map<String, SimpleFeatureCollection> coldRoutesFeatures) {

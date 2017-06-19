@@ -27,6 +27,7 @@ import org.geotools.swing.event.MapMouseEvent;
 import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
 
+import processing.core.PApplet;
 import ar.uba.fi.result.JamRoute;
 import ar.uba.fi.result.JamRoutes;
 
@@ -213,6 +214,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedJamRoutes);
       exportJamRoutesGeoJson(selectedJamRoutesFeatures);
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 
   void mapFeatures(SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
@@ -220,6 +222,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
       exportJamRoutesGeoJson(mapJamRoutesFeatures);
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 
   private void exportJamRoutesGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {

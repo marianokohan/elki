@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.JFrame;
+
 import processing.core.PApplet;
 import ar.uba.fi.visualization.geo.map.markers.EndPointMarker;
 import ar.uba.fi.visualization.geo.map.markers.StartPointMarker;
@@ -84,6 +86,14 @@ public class RoutesMapVisualizer extends PApplet {
       List<Marker> edgeRoutesMarkers = createEdgeMarkers(edgeRoutes, color, weight);
       map.addMarkers(edgeRoutesMarkers);
     }
+  }
+
+  @Override
+  protected void exitActual() {
+    //"ah ah ah !!! - not exit all, just the current frame
+    JFrame window = ((JFrame)this.frame);
+    window.setVisible(false); //you can't see me!
+    window.dispose(); //Destroy the JFrame object
   }
 
 }
