@@ -64,14 +64,16 @@ public class ColdRoutes extends Routes {
 
   public List<ColdRoute> filterColdRouteWithEdges(SimpleFeatureCollection edges) {
     List<ColdRoute> coldRoutesWithEdges = new LinkedList<ColdRoute>();
-    for(ColdRoute coldRoute : this.coldRoutes) {
-      try (SimpleFeatureIterator iter = edges.features()) {
-        while (iter.hasNext()) {
-            SimpleFeature edgeFeature = iter.next();
-            if (coldRoute.containsEdgeFeature(edgeFeature)) {
-              coldRoutesWithEdges.add(coldRoute);
-              break;
-            }
+    if (!edges.isEmpty()) {
+      for(ColdRoute coldRoute : this.coldRoutes) {
+        try (SimpleFeatureIterator iter = edges.features()) {
+          while (iter.hasNext()) {
+              SimpleFeature edgeFeature = iter.next();
+              if (coldRoute.containsEdgeFeature(edgeFeature)) {
+                coldRoutesWithEdges.add(coldRoute);
+                break;
+              }
+          }
         }
       }
     }

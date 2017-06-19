@@ -27,6 +27,7 @@ import java.awt.Color;
 import java.awt.Rectangle;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.FileSystems;
@@ -608,6 +609,13 @@ public class RoutesVisualizer {
     } catch (IOException ioException) {
         System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
     }
+  }
+
+  protected void deleteExportedFile(String fileName) {
+    Path filePath = FileSystems.getDefault().getPath(fileName);
+    File fileToDelete = filePath.toFile();
+    if (fileToDelete.exists())
+       fileToDelete.delete();
   }
 
 }

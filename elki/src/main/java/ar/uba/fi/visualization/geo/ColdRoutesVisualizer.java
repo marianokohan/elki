@@ -183,25 +183,42 @@ public class ColdRoutesVisualizer extends RoutesVisualizer implements ResultHand
       SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
       List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
-      exportColdRoutesGeoJson(selectedJamRoutesFeatures);
-      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
+      if (exportColdRoutesToGeoJson(selectedJamRoutesFeatures))
+        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
   }
 
   void mapFeatures(SimpleFeatureSource featureSource, ColdRoutes coldRoutes) {
       SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
       List<ColdRoute> selectedColdRoutes = coldRoutes.filterColdRouteWithEdges(selectedFeatures);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedColdRoutes);
-      exportColdRoutesGeoJson(selectedJamRoutesFeatures);
-      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
+      if (exportColdRoutesToGeoJson(selectedJamRoutesFeatures))
+        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.ColdRoutesMapVisualizer"});
   }
 
-  private void exportColdRoutesGeoJson(Map<String, SimpleFeatureCollection> coldRoutesFeatures) {
-    if (coldRoutesFeatures.containsKey("EDGES"))
+  private boolean exportColdRoutesToGeoJson(Map<String, SimpleFeatureCollection> coldRoutesFeatures) {
+    //delete existing file to only have the new ones features exported
+    deleteExportedFile("cold_routes_edges.json");
+    deleteExportedFile("cold_routes_cold_traffic.json");
+    deleteExportedFile("cold_routes_starts.json");
+    deleteExportedFile("cold_routes_ends.json");
+    boolean fileExported = false;
+    if (coldRoutesFeatures.containsKey("EDGES")) {
       exportToGeoJson(coldRoutesFeatures.get("EDGES"), "cold_routes_edges.json");
-    if (coldRoutesFeatures.containsKey("COLD"))
+      fileExported = true;
+    }
+    if (coldRoutesFeatures.containsKey("COLD")) {
       exportToGeoJson(coldRoutesFeatures.get("COLD"), "cold_routes_cold_traffic.json");
-    exportToGeoJson(coldRoutesFeatures.get("STARTS"), "cold_routes_starts.json");
-    exportToGeoJson(coldRoutesFeatures.get("ENDS"), "cold_routes_ends.json");
+      fileExported = true;
+    }
+    if (coldRoutesFeatures.containsKey("STARTS")) {
+      exportToGeoJson(coldRoutesFeatures.get("STARTS"), "cold_routes_starts.json");
+      fileExported = true;
+    }
+    if (coldRoutesFeatures.containsKey("ENDS")) {
+      exportToGeoJson(coldRoutesFeatures.get("ENDS"), "cold_routes_ends.json");
+      fileExported = true;
+    }
+    return fileExported;
   }
 
 }

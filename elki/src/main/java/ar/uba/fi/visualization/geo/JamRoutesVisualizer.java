@@ -213,25 +213,42 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
       List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedJamRoutes);
-      exportJamRoutesGeoJson(selectedJamRoutesFeatures);
-      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
+      if (exportJamRoutesToGeoJson(selectedJamRoutesFeatures))
+        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 
   void mapFeatures(SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
       SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
       List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
       Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
-      exportJamRoutesGeoJson(mapJamRoutesFeatures);
-      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
+      if (exportJamRoutesToGeoJson(mapJamRoutesFeatures))
+        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 
-  private void exportJamRoutesGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {
-    if (jamRoutesFeatures.containsKey("EDGES"))
+  private boolean exportJamRoutesToGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {
+    //delete existing file to only have the new ones features exported
+    deleteExportedFile("jam_routes_edges.json");
+    deleteExportedFile("jam_routes_jams.json");
+    deleteExportedFile("jam_routes_starts.json");
+    deleteExportedFile("jam_routes_ends.json");
+    boolean fileExported = false;
+    if (jamRoutesFeatures.containsKey("EDGES")) {
       exportToGeoJson(jamRoutesFeatures.get("EDGES"), "jam_routes_edges.json");
-    if (jamRoutesFeatures.containsKey("JAMS"))
+      fileExported = true;
+    }
+    if (jamRoutesFeatures.containsKey("JAMS")) {
       exportToGeoJson(jamRoutesFeatures.get("JAMS"), "jam_routes_jams.json");
-    exportToGeoJson(jamRoutesFeatures.get("STARTS"), "jam_routes_starts.json");
-    exportToGeoJson(jamRoutesFeatures.get("ENDS"), "jam_routes_ends.json");
+      fileExported = true;
+    }
+    if (jamRoutesFeatures.containsKey("STARTS")) {
+      exportToGeoJson(jamRoutesFeatures.get("STARTS"), "jam_routes_starts.json");
+      fileExported = true;
+    }
+    if (jamRoutesFeatures.containsKey("ENDS")) {
+      exportToGeoJson(jamRoutesFeatures.get("ENDS"), "jam_routes_ends.json");
+      fileExported = true;
+    }
+    return fileExported;
   }
 
   private void logJamRoutesFile(JamRoutes jamRoutes) {

@@ -92,16 +92,18 @@ public class JamRoutes extends Routes {
 
   public List<JamRoute> filterJamRouteWithEdges(SimpleFeatureCollection edges, boolean jamRoutesWithJams) {
     List<JamRoute> jamRoutesWithEdges = new LinkedList<JamRoute>();
-    for(JamRoute jamRoute : this.jamRoutes) {
-      if ( (jamRoutesWithJams && jamRoute.containsJams()) ||
-          (!jamRoutesWithJams) ){
-        try (SimpleFeatureIterator iter = edges.features()) {
-          while (iter.hasNext()) {
-              SimpleFeature edgeFeature = iter.next();
-              if (jamRoute.containsEdgeFeature(edgeFeature)) {
-                jamRoutesWithEdges.add(jamRoute);
-                break; //TODO: improve to avoid iterate this.jamRoutes
-              }
+    if (!edges.isEmpty()) {
+      for(JamRoute jamRoute : this.jamRoutes) {
+        if ( (jamRoutesWithJams && jamRoute.containsJams()) ||
+            (!jamRoutesWithJams) ){
+          try (SimpleFeatureIterator iter = edges.features()) {
+            while (iter.hasNext()) {
+                SimpleFeature edgeFeature = iter.next();
+                if (jamRoute.containsEdgeFeature(edgeFeature)) {
+                  jamRoutesWithEdges.add(jamRoute);
+                  break; //TODO: improve to avoid iterate this.jamRoutes
+                }
+            }
           }
         }
       }
