@@ -173,10 +173,9 @@ public class ColdScan implements Algorithm {
     }
     for(Iterator adjacentEdgesIterator = adjacentEdges.iterator(); adjacentEdgesIterator.hasNext();) {
       DirectedEdge adjacentEdge = (DirectedEdge) adjacentEdgesIterator.next();
-      String adjacentEdgeId = ((SimpleFeature)adjacentEdge.getObject()).getID();
-      Set<Integer> traffic = this.trafficSets.traffic(adjacentEdgeId);
-      if ((traffic.size() <= this.maxTraffic) && (this.sameDirection(currentEdge, adjacentEdge))) {
-        // |traffic(edge)| <= maxTraffic according to the order use to build the cold route
+      SimpleFeature adjacentEdgeFeature = (SimpleFeature)adjacentEdge.getObject();
+      if ((this.appliesThresholdCondition(adjacentEdgeFeature)) && (this.sameDirection(currentEdge, adjacentEdge))) {
+        // threshold condition for edge applies (|traffic(edge)| <= maxTraffic) according to the order use to build the cold route
         if (!this.isRoadNetworkCycle(adjacentEdge, coldRoute)) {
           coldTrafficReachableEdges.add(adjacentEdge);
         }
@@ -199,6 +198,11 @@ public class ColdScan implements Algorithm {
 
   private boolean isRoadNetworkCycle(DirectedEdge adjacentEdge, ColdRoute coldRoute) {
     return coldRoute.contains(adjacentEdge);
+  }
+
+  private boolean appliesThresholdCondition(SimpleFeature edge) {
+    Set<Integer> traffic = trafficSets.traffic(edge.getID());
+    return traffic.size() <= this.maxTraffic;
   }
 
   private List<DirectedEdge> getColdEdges(Set<String> jamEdgeIds)
@@ -229,8 +233,7 @@ public class ColdScan implements Algorithm {
     try {
       while (simpleFeatureIterator.hasNext()) {
         SimpleFeature neighborhoodBREdge = simpleFeatureIterator.next();
-        Set<Integer> traffic = trafficSets.traffic(neighborhoodBREdge.getID());
-        if (traffic.size() <= this.maxTraffic) {
+        if (appliesThresholdCondition(neighborhoodBREdge)) {
           coldEdges.add(neighborhoodBREdge);
         }
       }
