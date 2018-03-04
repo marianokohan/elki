@@ -1,10 +1,13 @@
 package ar.uba.fi.algorithm.hotroutes;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import ar.uba.fi.algorithm.jamroutes.JamFlowScan;
 import ar.uba.fi.converter.BrinkhoffPositionToEdgeConverter;
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
@@ -34,6 +37,7 @@ import de.lmu.ifi.dbs.elki.database.Database;
  */
 import de.lmu.ifi.dbs.elki.database.ids.DBIDIter;
 import de.lmu.ifi.dbs.elki.database.relation.Relation;
+import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /**
  * calculate de the Traffic (def. 4) for some given edges
@@ -43,7 +47,13 @@ import de.lmu.ifi.dbs.elki.database.relation.Relation;
  */
 public class TrafficSets {
 
+  private static final Logging LOG = Logging.getLogger(TrafficSets.class);
+  private static final String EDGES_TRAFFIC_SETS_DUMP = "edges__traffic_sets.csv";
+  //internal parameterization
+  protected static final boolean DUMP_TRAFFIC_SETS = true;
+
   private Map<Integer, Set<Integer>> edgeTransactionsMap;
+
 
   public TrafficSets(Database database) {
     edgeTransactionsMap = new HashMap<Integer, Set<Integer>>();
@@ -59,6 +69,32 @@ public class TrafficSets {
         edgeTransactionsMap.put(edgeId, trafficSet);
       }
       trafficSet.add(transationVector.intValue(0));
+    }
+    dumpTrafficSets();
+  }
+
+  /**
+   * dump traffic sets values to a csv file
+   */
+  protected void dumpTrafficSets() {
+    if (DUMP_TRAFFIC_SETS) {
+      FileWriter trafficSetsDump;
+      try {
+        trafficSetsDump = new FileWriter(EDGES_TRAFFIC_SETS_DUMP);
+        StringBuffer edgeTrafficSets;
+        for(Map.Entry<Integer, Set<Integer>> edgeTransactions : this.edgeTransactionsMap.entrySet()) {
+          edgeTrafficSets = new StringBuffer().append(edgeTransactions.getKey()).append(";");
+          Set<Integer> traffic = edgeTransactions.getValue();
+          edgeTrafficSets.append(traffic).append(";");
+          edgeTrafficSets.append(traffic.size()).append("\n");
+          trafficSetsDump.write(edgeTrafficSets.toString());
+        }
+        trafficSetsDump.close();
+        LOG.debug("Created traffic sets dump '" + EDGES_TRAFFIC_SETS_DUMP + "' from " + this.edgeTransactionsMap.size() + " edges.");
+      }
+      catch(IOException e) {
+        LOG.debug("exception on traffic sets dump", e);
+      }
     }
   }
 

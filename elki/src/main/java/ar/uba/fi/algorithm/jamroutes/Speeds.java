@@ -1,7 +1,10 @@
 package ar.uba.fi.algorithm.jamroutes;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import ar.uba.fi.converter.BrinkhoffPositionToEdgeConverter;
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
@@ -43,8 +46,10 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
 public class Speeds {
 
   private static final Logging LOG = Logging.getLogger(Speeds.class);
+  private static final String SPEEDS_DUMP = "edges__speeds.csv";
   //internal parameterization
   protected static final boolean LOG_SPEED_STATS = true;
+  protected static final boolean DUMP_SPEEDS = true;
 
   private Map<Integer, Speed> edgeSpeedMap;
 
@@ -69,6 +74,7 @@ public class Speeds {
     if (LOG_SPEED_STATS) {
       logSpeedStats();
     }
+    dumpSpeeds();
   }
 
   private void logSpeedStats() {
@@ -104,6 +110,29 @@ public class Speeds {
     LOG.debug("min: " + minSpeed);
     LOG.debug("max: " + maxSpeed);
     LOG.debug("mean: " + speedSum/speedCount + "\n\n");
+  }
+
+  /**
+   * dump speed values to a csv file
+   */
+  protected void dumpSpeeds() {
+    if (DUMP_SPEEDS) {
+      FileWriter speedsDump;
+      try {
+        speedsDump = new FileWriter(SPEEDS_DUMP);
+        StringBuffer edgeSpeed;
+        for(Map.Entry<Integer, Speed> edgeSpeedEntry : this.edgeSpeedMap.entrySet()) {
+          edgeSpeed = new StringBuffer().append(edgeSpeedEntry.getKey()).append(";");
+          edgeSpeed.append(edgeSpeedEntry.getValue().get()).append("\n");
+          speedsDump.write(edgeSpeed.toString());
+        }
+        speedsDump.close();
+        LOG.debug("Created speeds dump '" + SPEEDS_DUMP + "' from " + this.edgeSpeedMap.size() + " edges.");
+      }
+      catch(IOException e) {
+        LOG.debug("exception on speeds dump", e);
+      }
+    }
   }
 
   /**
