@@ -239,6 +239,10 @@ public class RoadNetwork {
     return geodeticCalculator.getOrthodromicDistance();
   }
 
+  public ReferencedEnvelope createBox(double[] area) {
+    return new ReferencedEnvelope(area[0], area[1], area[2], area[3], this.crs);
+  }
+
   /**
    * @deprecated
    * use getRoadsFeatureSource instead to obtain only the Features specific to roads

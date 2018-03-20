@@ -45,6 +45,7 @@ public abstract class Preprocessor {
   }
 
   public void preprocess() {
+    this.preprocessInit();
     this.rowCounter = 0;
     this.filteredRowCounter = 0;
     if (this.trajectories.isDirectory()) {
@@ -68,6 +69,15 @@ public abstract class Preprocessor {
       this.preprocessFile(this.trajectories);
     }
     LOG.debug("Total filtered " + filteredRowCounter + " rows from " + rowCounter + " (" + (float)filteredRowCounter/rowCounter * 100 + "%).");
+    this.preprocessEnd();
+  }
+
+  protected void preprocessInit() {
+    // nothing for base class
+  }
+
+  protected void preprocessEnd() {
+    // nothing for base class
   }
 
   protected String getPreprocessedFileName(File trajectories) {

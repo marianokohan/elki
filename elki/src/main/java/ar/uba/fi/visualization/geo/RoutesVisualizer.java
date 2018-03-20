@@ -79,6 +79,7 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.Point;
+import com.vividsolutions.jts.geom.Polygon;
 
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.LabelList;
@@ -251,10 +252,15 @@ public class RoutesVisualizer {
       }
       DoubleVector pointElement = pointRelation.get(iditer);
       Coordinate pointCoordinate = new Coordinate(pointElement.doubleValue(0), pointElement.doubleValue(1));
-      GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
-      geometries.add(geometryFactory.createPoint(pointCoordinate));
+      geometries.add(createPoint(pointCoordinate));
     }
     return geometries;
+  }
+
+  protected Point createPoint(Coordinate pointCoordinate) {
+    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
+    Point point = geometryFactory.createPoint(pointCoordinate);
+    return point;
   }
 
   protected FeatureLayer createTrajectoriesLayer(SimpleFeatureSource featureSource, Database database) {
@@ -493,6 +499,11 @@ public class RoutesVisualizer {
     return createLayer(points, rules);
   }
 
+  protected FeatureLayer createPolygonLayer(SimpleFeatureCollection polygon, SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
+    Rule rules[] = {createPolygonStyleRule(featureSource, strokeColor, strokeWitdh)};
+    return createLayer(polygon, rules);
+  }
+
   private FeatureLayer createLayer(SimpleFeatureCollection features, Rule[] rules) {
     FeatureTypeStyle featureTypeStyle = styleFactory.createFeatureTypeStyle(rules);
     Style style = styleFactory.createStyle();
@@ -512,6 +523,19 @@ public class RoutesVisualizer {
 
     Rule lineRule = styleFactory.createRule();
     lineRule.symbolizers().add(lineSymbolizer);
+    return lineRule;
+  }
+
+  protected Rule createPolygonStyleRule(SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
+    Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
+            filterFactory.literal(strokeWitdh));
+
+    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
+    String geometryAttributeName = geomDescriptor.getLocalName();
+    org.geotools.styling.PolygonSymbolizer polygonSymbolizer = styleFactory.createPolygonSymbolizer(markStroke, null, geometryAttributeName);
+
+    Rule lineRule = styleFactory.createRule();
+    lineRule.symbolizers().add(polygonSymbolizer);
     return lineRule;
   }
 
@@ -563,6 +587,23 @@ public class RoutesVisualizer {
         pointsFeatureCollection.add(pointFeature);
     }
     return pointsFeatureCollection;
+  }
+
+  public DefaultFeatureCollection createPolygonFeatureCollection(Polygon polygon) {
+    SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
+    builder.setName("Area");
+    builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
+    builder.add("the_geom", Polygon.class);
+    builder.length(15).add("Name", String.class); // 15 chars width for name field
+    SimpleFeatureType polygonType = builder.buildFeatureType();
+
+    SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(polygonType);
+    simpleFeatureBuilder.add(polygon);
+    SimpleFeature polygonFeature = simpleFeatureBuilder.buildFeature(null);
+
+    DefaultFeatureCollection polygonFeatureCollection = new DefaultFeatureCollection();
+    polygonFeatureCollection.add(polygonFeature);
+    return polygonFeatureCollection;
   }
 
   protected SimpleFeatureCollection getSelectedFeaturedFromClick(MapMouseEvent ev, SimpleFeatureSource featureSource) {
