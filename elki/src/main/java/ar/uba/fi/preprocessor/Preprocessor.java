@@ -44,7 +44,7 @@ public abstract class Preprocessor {
     this.roadNetwork = RoadNetwork.getInstance(roadNetworkFile);
   }
 
-  public void preprocess() {
+  public void preprocess() throws Exception {
     this.preprocessInit();
     this.rowCounter = 0;
     this.filteredRowCounter = 0;
@@ -72,11 +72,11 @@ public abstract class Preprocessor {
     this.preprocessEnd();
   }
 
-  protected void preprocessInit() {
+  protected void preprocessInit() throws Exception {
     // nothing for base class
   }
 
-  protected void preprocessEnd() {
+  protected void preprocessEnd() throws Exception {
     // nothing for base class
   }
 

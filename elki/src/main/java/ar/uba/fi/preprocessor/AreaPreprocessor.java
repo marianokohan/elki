@@ -65,7 +65,7 @@ public class AreaPreprocessor extends Preprocessor {
   }
 
   protected String getPreprocessSubfix() {
-    return "_processed_area";
+    return "_proc-A";
   }
 
   protected void preprocessFile(File trajectories) {
@@ -160,7 +160,7 @@ public class AreaPreprocessor extends Preprocessor {
   /**
    * @param args
    */
-  public static void main(String[] args) {
+  public static void main(String[] args)  throws Exception {
     File trajectoriesFile = new File(args[0]);
     File roadNetworkFile = new File(args[1]);
     //limit x1, limit x2, limit y1, limit y2

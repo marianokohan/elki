@@ -150,8 +150,9 @@ public class SpeedPreprocessor extends Preprocessor {
 
   /**
    * @param args
+   * @throws Exception
    */
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     //TODO: better handling of parameters
     File trajectoriesFile = new File(args[0]);
     File roadNetworkFile = new File(args[1]);
