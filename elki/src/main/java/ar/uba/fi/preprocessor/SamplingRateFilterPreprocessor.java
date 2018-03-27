@@ -125,14 +125,6 @@ public class SamplingRateFilterPreprocessor extends Preprocessor {
     }
   }
 
-  @Override
-  protected void preprocessInit()  throws Exception {
-  }
-
-  @Override
-  protected void preprocessEnd() throws Exception {
-  }
-
   /**
    * @param args
    */

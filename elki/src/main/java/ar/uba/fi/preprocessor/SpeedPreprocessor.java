@@ -7,8 +7,6 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.opengis.referencing.operation.TransformException;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -35,82 +33,113 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /**
  * Preprocessor for T-Drive dataset
- *  - calculates speed
- *  - filter rows according to speed values <= 100 km/h (it is already >= 0 km/h)
- *  - validates timestamps order: next timestamp should be greater than previous one
- *      (to allow calculate speed)
+ *  - calculates speed (in km/h)
+ *  - filter rows according to speed values
+ *  - params:
+ *    - value of max speed to filter (it is already >= 0 km/h)
+ *    - or "speeds": only calculates speeds values, dumped to file "speeds.txt"
  *
  * @author Mariano Kohan
  *
  */
 public class SpeedPreprocessor extends Preprocessor {
 
-  private static final int MAX_SPEED_THRESHOLD = 100;
+  private static final String SPEEDS_PARAM = "speeds";
+  private static final String SPEEDS_DUMP_FILENAME = "speeds.txt";
 
   private static final Logging LOG = Logging.getLogger(SpeedPreprocessor.class);
 
+  private boolean filterSpeeds;
+  private double maxSpeedThreshold;
+  private FileWriter speeds;
+
   public SpeedPreprocessor(File trajectoriesFile, File roadNetworkFile) {
     super(trajectoriesFile, roadNetworkFile);
+    this.filterSpeeds = false;
   }
 
+  public SpeedPreprocessor(File trajectoriesFile, File roadNetworkFile, double maxSpeedThreshold) {
+    super(trajectoriesFile, roadNetworkFile);
+    this.filterSpeeds = true;
+    this.maxSpeedThreshold = maxSpeedThreshold;
+  }
+
+  @Override
   protected String getPreprocessSubfix() {
-    return "_processed_speed";
+    return "_proc-S";
   }
 
+  @Override
   protected void preprocessFile(File trajectories) {
     LOG.debug("preprocessing speed for file: " + trajectories);
     try {
-      // Input format: T-Drive (User_guide_T-drive.pdf)
-      // taxi id, date time, longitude, latitude
-      // example: 1,2008-02-02 15:36:08,116.51172,39.92123
+      // Input format from SamplingRateFilterPreprocessor
+      // trajectory id (taxi id + sequential number); timestamp (in milliseconds); longitude; latitude
+      //  additional for verification-> [; date time (original value from T-Drive); sampling rate (original value without considering cuts, in seconds); trajectory length]
       BufferedReader trajectoriesReader = new BufferedReader(new FileReader(trajectories));
 
       //processed format
-      // trId; timestamp (in milliseconds); longitude; latitude (same as currently implemented); speed (in km/h)
-      FileWriter processedTrajectories = new FileWriter(getPreprocessedFileName(trajectories));
+      // trajectory id (from sampling rate preprocessor); timestamp (in milliseconds); longitude; latitude; speed (in km/h)
+      FileWriter processedTrajectories = null;
+      if (this.filterSpeeds) {
+        processedTrajectories = new FileWriter(getPreprocessedFileName(trajectories));
+      }
 
       Coordinate previousPositionCoordinate = null;
       long previousTimestamp = -1;
       long timestamp = -1;
       double speed = 0;
+      String trajectoryId = null, previousTrajectoryId = null;
       int rowCounter = 0;
       int filteredRowCounter = 0;
 
       for(String trajectoryLine; (trajectoryLine = trajectoriesReader.readLine()) != null; ) {
         rowCounter++;
-        String[] trajectoryElements = trajectoryLine.split(",");
-
-        StringBuffer processedTrajectoryRow = new StringBuffer(trajectoryElements[0]).append(";");
+        String[] trajectoryElements = trajectoryLine.split(";");
+        trajectoryId = trajectoryElements[0];
         Coordinate positionCoordinate =  new Coordinate( Double.parseDouble(trajectoryElements[2]), Double.parseDouble(trajectoryElements[3]));
         if (previousPositionCoordinate == null) {
           previousPositionCoordinate = positionCoordinate;
         }
-        timestamp = getTimestampMiliseconds(trajectoryElements[1]);
-        if (timestamp > previousTimestamp) {
-            speed = this.calculateSpeed(positionCoordinate, timestamp, previousPositionCoordinate, previousTimestamp);
-            if (speed <= MAX_SPEED_THRESHOLD) {
-              processedTrajectoryRow.append(timestamp).append(";");
-              processedTrajectoryRow.append(trajectoryElements[2]).append(";");
-              processedTrajectoryRow.append(trajectoryElements[3]).append(";");
-              processedTrajectoryRow.append(String.format("%.5f", speed)).append("\n");
+        timestamp = Long.valueOf(trajectoryElements[1]);
+        if (!trajectoryId.equals(previousTrajectoryId)) {
+          previousTimestamp = -1;
+        }
+        speed = this.calculateSpeed(positionCoordinate, timestamp, previousPositionCoordinate, previousTimestamp);
+        if (this.filterSpeeds) {
+          if (validSpeed(speed)) {
+            StringBuffer processedTrajectoryRow = new StringBuffer(trajectoryId).append(";");
+            processedTrajectoryRow.append(timestamp).append(";");
+            processedTrajectoryRow.append(trajectoryElements[2]).append(";");
+            processedTrajectoryRow.append(trajectoryElements[3]).append(";");
+            processedTrajectoryRow.append(String.format("%.5f", speed)).append("\n");
 
-              processedTrajectories.write(processedTrajectoryRow.toString());
-              previousPositionCoordinate = positionCoordinate;
-              previousTimestamp = timestamp;
-            } else {
-              filteredRowCounter++;
-            }
-        } else {
-          if (timestamp == previousTimestamp) {
-            LOG.warning("repeated timestamp for " + trajectoryElements[0] + ": " +  previousTimestamp + " -> " + timestamp + " (" + trajectoryElements[1] + ")");
+            processedTrajectories.write(processedTrajectoryRow.toString());
+            //speed calculated with respect to last valid position to avoid calculate with incorrect positions
+            // in case big difference is observed, consider to calculate always with respect to last position (marked bellow)
+            previousPositionCoordinate = positionCoordinate;
+            previousTimestamp = timestamp;
+            previousTrajectoryId = trajectoryId;
           } else {
-            LOG.warning("small timestamp for " + trajectoryElements[0] + ": " +  previousTimestamp + " -> " + timestamp + " (" + trajectoryElements[1] + ")");
+            filteredRowCounter++;
           }
-          filteredRowCounter++;
+          /*
+          //uncomment to calculated speed with respect to last position (referenced up)
+          previousPositionCoordinate = positionCoordinate;
+          previousTimestamp = timestamp;
+          */
+        } else {
+          speeds.append(String.format("%.5f", speed));
+          speeds.append("\n");
+          previousPositionCoordinate = positionCoordinate;
+          previousTimestamp = timestamp;
+          previousTrajectoryId = trajectoryId;
         }
       }
 
-      processedTrajectories.close();
+      if (this.filterSpeeds) {
+        processedTrajectories.close();
+      }
       trajectoriesReader.close();
       this.updateRowCounter(rowCounter);
       this.updateFilteredRowCounter(filteredRowCounter);
@@ -124,16 +153,28 @@ public class SpeedPreprocessor extends Preprocessor {
     }
   }
 
-   public long getTimestampMiliseconds(String dateTimeString) {
-     //example format: '2008-02-02 15:36:08'
-     //using joda-time because issue with std java classes
-     String input = dateTimeString.replace( " ", "T" );
-     DateTime dateTime = new DateTime( input, DateTimeZone.UTC );
-     long millisecondsSinceUnixEpoch = dateTime.getMillis();
-     return millisecondsSinceUnixEpoch;
-   }
+  @Override
+  protected void preprocessInit()  throws Exception {
+    if (!this.filterSpeeds) {
+      this.speeds = new FileWriter(SPEEDS_DUMP_FILENAME);
+    }
+  }
+
+  @Override
+  protected void preprocessEnd() throws Exception {
+    if (!this.filterSpeeds) {
+      this.speeds.close();
+    }
+  }
+
+  private boolean validSpeed(double speed) {
+    return (speed <= this.maxSpeedThreshold);
+  }
 
   private double calculateSpeed(Coordinate position, long timestamp, Coordinate previousPosition, long previousTimestamp) {
+    if (previousTimestamp < 0) { //no previous position => speed = 0
+      return 0;
+    }
     double velocity = 0;
     double distante;
     long time;
@@ -153,13 +194,16 @@ public class SpeedPreprocessor extends Preprocessor {
    * @throws Exception
    */
   public static void main(String[] args) throws Exception {
-    //TODO: better handling of parameters
     File trajectoriesFile = new File(args[0]);
     File roadNetworkFile = new File(args[1]);
-
-    new SpeedPreprocessor(trajectoriesFile, roadNetworkFile).preprocess();
-
+    String speed = args[2];
+    SpeedPreprocessor preprocessor;
+    if (SPEEDS_PARAM.equals(speed)) {
+      preprocessor = new SpeedPreprocessor(trajectoriesFile, roadNetworkFile);
+    } else {
+      preprocessor = new SpeedPreprocessor(trajectoriesFile, roadNetworkFile, Double.parseDouble(speed));
+    }
+    preprocessor.preprocess();
   }
-
 
 }
