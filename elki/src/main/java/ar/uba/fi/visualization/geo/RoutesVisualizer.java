@@ -48,7 +48,6 @@ import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
-import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.styling.FeatureTypeStyle;
@@ -60,7 +59,6 @@ import org.geotools.styling.PointSymbolizer;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Stroke;
 import org.geotools.styling.Style;
-import org.geotools.styling.StyleBuilder;
 import org.geotools.styling.StyleFactory;
 import org.geotools.swing.JMapFrame;
 import org.geotools.swing.event.MapMouseEvent;
@@ -79,7 +77,6 @@ import com.vividsolutions.jts.geom.Geometry;
 import com.vividsolutions.jts.geom.GeometryFactory;
 import com.vividsolutions.jts.geom.LineString;
 import com.vividsolutions.jts.geom.Point;
-import com.vividsolutions.jts.geom.Polygon;
 
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.LabelList;
@@ -93,30 +90,17 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
  * @author Mariano Kohan
  *
  */
-public class RoutesVisualizer {
+public class RoutesVisualizer extends MapVisualizer {
 /*
  * TODO: consider refactor according to visualize trajectories, only first one (if required) , ....
  */
 
-  protected enum PointPositionType {START, END, MIDDLE}
-
   private static final Color TRAJECTORY_COLOR = new Color(50, 100, 228);
   static final Logging LOG = Logging.getLogger(RoutesVisualizer.class);
-  protected StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
-  protected FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
   protected JMapFrame mapFrame;
 
   public RoutesVisualizer() {
     super();
-  }
-
-  protected Layer createRoadNetworkLayer(SimpleFeatureSource featureSource) {
-        StyleBuilder styleBuilder = new StyleBuilder();
-        LineSymbolizer restrictedSymb = styleBuilder.createLineSymbolizer(Color.LIGHT_GRAY);
-        Style mapStyle = styleBuilder.createStyle(restrictedSymb);
-
-        Layer mapLayer = new FeatureLayer(featureSource, mapStyle);
-        return mapLayer;
   }
 
   private void displayFirstTrajectory(Routes routes, Database database) {
@@ -255,12 +239,6 @@ public class RoutesVisualizer {
       geometries.add(createPoint(pointCoordinate));
     }
     return geometries;
-  }
-
-  protected Point createPoint(Coordinate pointCoordinate) {
-    GeometryFactory geometryFactory = JTSFactoryFinder.getGeometryFactory();
-    Point point = geometryFactory.createPoint(pointCoordinate);
-    return point;
   }
 
   protected FeatureLayer createTrajectoriesLayer(SimpleFeatureSource featureSource, Database database) {
@@ -494,25 +472,6 @@ public class RoutesVisualizer {
     return createLayer(edges, rules);
   }
 
-  protected FeatureLayer createPointsLayer(SimpleFeatureCollection points, SimpleFeatureSource featureSource, PointPositionType markType, Color markColor, int markSize) {
-    Rule rules[] = {createPointStyleRule(featureSource, markType, markColor, markSize)};
-    return createLayer(points, rules);
-  }
-
-  protected FeatureLayer createPolygonLayer(SimpleFeatureCollection polygon, SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
-    Rule rules[] = {createPolygonStyleRule(featureSource, strokeColor, strokeWitdh)};
-    return createLayer(polygon, rules);
-  }
-
-  private FeatureLayer createLayer(SimpleFeatureCollection features, Rule[] rules) {
-    FeatureTypeStyle featureTypeStyle = styleFactory.createFeatureTypeStyle(rules);
-    Style style = styleFactory.createStyle();
-    style.featureTypeStyles().add(featureTypeStyle);
-
-    FeatureLayer featureLayer = new FeatureLayer(features, style);
-    return featureLayer;
-  }
-
   protected Rule createLineStyleRule(SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
     Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
             filterFactory.literal(strokeWitdh));
@@ -524,86 +483,6 @@ public class RoutesVisualizer {
     Rule lineRule = styleFactory.createRule();
     lineRule.symbolizers().add(lineSymbolizer);
     return lineRule;
-  }
-
-  protected Rule createPolygonStyleRule(SimpleFeatureSource featureSource, Color strokeColor, int strokeWitdh) {
-    Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
-            filterFactory.literal(strokeWitdh));
-
-    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
-    String geometryAttributeName = geomDescriptor.getLocalName();
-    org.geotools.styling.PolygonSymbolizer polygonSymbolizer = styleFactory.createPolygonSymbolizer(markStroke, null, geometryAttributeName);
-
-    Rule lineRule = styleFactory.createRule();
-    lineRule.symbolizers().add(polygonSymbolizer);
-    return lineRule;
-  }
-
-  protected Rule createPointStyleRule(SimpleFeatureSource featureSource, PointPositionType markType, Color markColor, int markSize) {
-    Fill markFill = styleFactory.createFill(filterFactory.literal(markColor));
-    Mark pointMark;
-    switch (markType) {
-      case START:
-        pointMark = styleFactory.getSquareMark();
-        break;
-      case END:
-        pointMark = styleFactory.getXMark();
-        break;
-      default:
-        pointMark = styleFactory.getCircleMark();
-        break;
-    }
-    pointMark.setFill(markFill);
-
-    Graphic graphic = styleFactory.createDefaultGraphic();
-    graphic.graphicalSymbols().clear();
-    graphic.graphicalSymbols().add(pointMark);
-    graphic.setSize(filterFactory.literal(markSize));
-
-    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
-    String geometryAttributeName = geomDescriptor.getLocalName();
-    PointSymbolizer pointSymbolizer = styleFactory.createPointSymbolizer(graphic, geometryAttributeName);
-
-    Rule pointRule = styleFactory.createRule();
-    pointRule.symbolizers().add(pointSymbolizer);
-    return pointRule;
-  }
-
-  public DefaultFeatureCollection createPointFeatureCollection(List<Point> points) {
-    DefaultFeatureCollection pointsFeatureCollection = new DefaultFeatureCollection();
-    for (Geometry point : points)
-    {
-        SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
-        builder.setName("Trajectory");
-        builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
-        builder.add("the_geom", Point.class);
-        builder.length(15).add("Name", String.class); // 15 chars width for name field
-        SimpleFeatureType pointType = builder.buildFeatureType();
-
-        SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
-        simpleFeatureBuilder.add(point);
-        SimpleFeature pointFeature = simpleFeatureBuilder.buildFeature(null);
-
-        pointsFeatureCollection.add(pointFeature);
-    }
-    return pointsFeatureCollection;
-  }
-
-  public DefaultFeatureCollection createPolygonFeatureCollection(Polygon polygon) {
-    SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
-    builder.setName("Area");
-    builder.setCRS(DefaultGeographicCRS.WGS84); // Coordinate reference system
-    builder.add("the_geom", Polygon.class);
-    builder.length(15).add("Name", String.class); // 15 chars width for name field
-    SimpleFeatureType polygonType = builder.buildFeatureType();
-
-    SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(polygonType);
-    simpleFeatureBuilder.add(polygon);
-    SimpleFeature polygonFeature = simpleFeatureBuilder.buildFeature(null);
-
-    DefaultFeatureCollection polygonFeatureCollection = new DefaultFeatureCollection();
-    polygonFeatureCollection.add(polygonFeature);
-    return polygonFeatureCollection;
   }
 
   protected SimpleFeatureCollection getSelectedFeaturedFromClick(MapMouseEvent ev, SimpleFeatureSource featureSource) {

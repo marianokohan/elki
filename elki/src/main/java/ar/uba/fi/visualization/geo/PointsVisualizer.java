@@ -38,7 +38,7 @@ import com.vividsolutions.jts.geom.Polygon;
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-public class PointsVisualizer extends RoutesVisualizer {
+public class PointsVisualizer extends MapVisualizer {
 
   private static final Color POINT_COLOR = new Color(204, 197, 0);
   private static final Color AREA_COLOR = new Color(50, 110, 230);
@@ -75,7 +75,7 @@ public class PointsVisualizer extends RoutesVisualizer {
     */
     /*
     //adjustment to consider core area of Beijing = "...region with the fifth ring road Five Rings"
-    Coordinate[] coordinates = { new Coordinate(116.20, 40.0257582), 
+    Coordinate[] coordinates = { new Coordinate(116.20, 40.0257582),
         new Coordinate(116.545, 40.0257582),
         new Coordinate(116.545, 39.754980),
         new Coordinate(116.20, 39.754980),

@@ -74,6 +74,7 @@ public class RoadNetwork {
   private String edgeFeaturePrefix;
   private CoordinateReferenceSystem crs;
   private GeodeticCalculator geodeticCalculator;
+  private GridMapping gridMapping;
 
   private static Map<File, RoadNetwork> roadNetworkInstanceMap;
 
@@ -153,6 +154,7 @@ public class RoadNetwork {
     processedEdges = 0;
     try {
       features.accepts(new FeatureVisitor() {
+          @Override
           public void visit(Feature feature) {
             if (isRoad((SimpleFeature) feature)) {
               generator.add(feature);
@@ -170,6 +172,12 @@ public class RoadNetwork {
   private void initGeodeticCalculator() {
     this.crs = this.getRoadsFeatureSource().getSchema().getCoordinateReferenceSystem();
     this.geodeticCalculator = new GeodeticCalculator(crs);
+  }
+
+  public GridMapping setGridMapping(double[] area, double sideLen) {
+    ReferencedEnvelope gridBounds = this.createBox(area);
+    this.gridMapping = new GridMapping(gridBounds, sideLen);
+    return this.gridMapping;
   }
 
   private boolean isRoad(SimpleFeature simpleFeature) {
@@ -233,6 +241,10 @@ public class RoadNetwork {
     return minDistanceEdge;
   }
 
+  public GridMapping getGridMapping() {
+    return gridMapping;
+  }
+
   public double calculateDistance(Coordinate startPoint, Coordinate endPoint) throws TransformException {
     geodeticCalculator.setStartingPosition(JTS.toDirectPosition(startPoint, crs));
     geodeticCalculator.setDestinationPosition(JTS.toDirectPosition(endPoint, crs));
@@ -247,6 +259,7 @@ public class RoadNetwork {
    * @deprecated
    * use getRoadsFeatureSource instead to obtain only the Features specific to roads
    */
+  @Deprecated
   public SimpleFeatureSource getFeatureSource() {
     SimpleFeatureSource featureSource = null;
     try {
