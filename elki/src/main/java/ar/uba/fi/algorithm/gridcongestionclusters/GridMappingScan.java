@@ -1,6 +1,7 @@
 package ar.uba.fi.algorithm.gridcongestionclusters;
 
 import java.io.File;
+import java.util.Map;
 
 import ar.uba.fi.result.CongestionClusters;
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -61,9 +62,10 @@ public class GridMappingScan implements Algorithm {
   @Override
   public Result run(Database database) {
     this.gridSpeeds = new GridSpeeds(database, this.roadNetwork.getGridMapping());
+    Map<String, Double> cellsPerformanceIndex = this.gridSpeeds.calculateCellsPerformanceIndex();
 
     CongestionClusters result = new CongestionClusters(this.roadNetwork);
-    result.mappedCellsId = this.gridSpeeds.mappedCellsId;
+    result.cellsPerformanceIndex = cellsPerformanceIndex;
     return result;
   }
 

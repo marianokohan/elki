@@ -4,7 +4,10 @@ import java.awt.Color;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -56,12 +59,8 @@ import de.lmu.ifi.dbs.elki.utilities.datastructures.hierarchy.Hierarchy;
  */
 public class GridVisualizer extends MapVisualizer implements ResultHandler {
 
-  private static final Color GRID_LINE_COLOR = Color.YELLOW;
-  private static final double GRID_LINE_WIDTH = 0.0001;
-
-  private static final Color CELL_LINE_COLOR = Color.ORANGE;
-  private static final double CELL_LINE_WIDTH = 2;
-
+  protected static final Color GRID_LINE_COLOR = Color.YELLOW;
+  protected static final double GRID_LINE_WIDTH = 0.0001;
 
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
@@ -78,9 +77,7 @@ public class GridVisualizer extends MapVisualizer implements ResultHandler {
         congestionClusters = (CongestionClusters) result;
       }
     }
-    //this.displayGrid(congestionClusters.getRoadNetwork());
-    //this.displayCells(congestionClusters.getRoadNetwork(), congestionClusters.mappedCells);
-    this.displayCellsId(congestionClusters.getRoadNetwork(), congestionClusters.mappedCellsId);
+    this.displayGrid(congestionClusters.getRoadNetwork());
   }
 
   public void displayGrid(RoadNetwork gridMappedRoadNetwork) {
@@ -94,69 +91,6 @@ public class GridVisualizer extends MapVisualizer implements ResultHandler {
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
 
     JMapFrame.showMap(map);
-  }
-
-  public void displayCellsList(RoadNetwork gridMappedRoadNetwork, List<SimpleFeature> cells) {
-    DefaultFeatureCollection cellsFeatureCollection = new DefaultFeatureCollection();
-    cellsFeatureCollection.addAll(cells);
-    this.displayCells(gridMappedRoadNetwork, cellsFeatureCollection);
-  }
-
-  public void displayCellsId(RoadNetwork gridMappedRoadNetwork, Set<String> cellsId) {
-    SimpleFeatureCollection cells = this.getCellFeatures(cellsId, gridMappedRoadNetwork);
-    this.displayCells(gridMappedRoadNetwork, cells);
-  }
-
-  protected SimpleFeatureCollection getCellFeatures(Set<String> cellsId, RoadNetwork gridMappedRoadNetwork) {
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
-    SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
-
-    Set<FeatureId> fids = new HashSet<>();
-    for (String id : cellsId) {
-        FeatureId fid = ff.featureId(id);
-        fids.add(fid);
-    }
-    Filter filter = ff.id(fids);
-    try {
-      return grid.getFeatures(filter);
-    }
-    catch(IOException e) {
-      de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
-    }
-    return null;
-  }
-
-  protected void displayCells(RoadNetwork gridMappedRoadNetwork, SimpleFeatureCollection cells) {
-    SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
-    SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
-
-    MapContent map = new MapContent();
-    map.setTitle("Mapped grid cells");
-
-    map.addLayer(createRoadNetworkLayer(featureSource));
-    map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
-    map.addLayer(createGridCellsLayer(cells, grid, CELL_LINE_COLOR, CELL_LINE_WIDTH));
-
-    JMapFrame.showMap(map);
-  }
-
-  protected FeatureLayer createGridCellsLayer(SimpleFeatureCollection cells, SimpleFeatureSource grid, Color strokeColor, double strokeWitdh) {
-    Rule rules[] = {createGridCellsStyleRule(grid, strokeColor, strokeWitdh)};
-    return createLayer(cells, rules);
-  }
-
-  protected Rule createGridCellsStyleRule(SimpleFeatureSource featureSource, Color strokeColor, double strokeWitdh) {
-    Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
-            filterFactory.literal(strokeWitdh));
-    Fill markFill = styleFactory.createFill(filterFactory.literal(strokeColor));
-
-    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
-    String geometryAttributeName = geomDescriptor.getLocalName();
-    PolygonSymbolizer polygonSymbolizer = styleFactory.createPolygonSymbolizer(markStroke, markFill, geometryAttributeName);
-
-    Rule lineRule = styleFactory.createRule();
-    lineRule.symbolizers().add(polygonSymbolizer);
-    return lineRule;
   }
 
   //based initial testing

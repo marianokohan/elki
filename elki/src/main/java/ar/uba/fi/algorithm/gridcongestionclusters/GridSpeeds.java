@@ -1,14 +1,17 @@
 package ar.uba.fi.algorithm.gridcongestionclusters;
 
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.function.Consumer;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
+import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TimesliceSpeeds;
+import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TrajectorySpeeds;
 import ar.uba.fi.roadnetwork.GridMapping;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -19,6 +22,7 @@ import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
 import de.lmu.ifi.dbs.elki.database.Database;
 import de.lmu.ifi.dbs.elki.database.ids.DBIDIter;
 import de.lmu.ifi.dbs.elki.database.relation.Relation;
+import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /*
  This file is developed to run as part of ELKI:
@@ -46,32 +50,11 @@ import de.lmu.ifi.dbs.elki.database.relation.Relation;
  */
 public class GridSpeeds {
 
-  public Set<String> mappedCellsId; //TODO: tmp hasta definir estructura para velocidades e indices
-  private Map<String,Map<Integer,Map<String,TrajectorySpeeds>>> cellTimeSpeeds;
+  private static final Logging LOG = Logging.getLogger(GridSpeeds.class);
+
+  private Map<String, CellSpeeds> cellTimeSpeeds;
 
   private int timeSliceLength = 15 * 60; //15 min - TODO: consider parametrize
-
-  //list of speed values for a moving object trajectory inside a cell and timestamp
-  public class TrajectorySpeeds {
-      private DescriptiveStatistics speedStats;
-      private double meanSpeed;
-
-      public TrajectorySpeeds() {
-        this.speedStats = new DescriptiveStatistics();
-      }
-
-      public void addSpeed(double speed) {
-        this.speedStats.addValue(speed);
-      }
-
-      public void calculateMean() {
-        this.meanSpeed = this.speedStats.getMean();
-      }
-
-      public double getMean() {
-        return this.meanSpeed;
-      }
-  }
 
   public GridSpeeds(Database database, GridMapping grid) {
     mapTrajectorySpeedByCellAndTimeslice(database, grid);
@@ -79,9 +62,9 @@ public class GridSpeeds {
   }
 
   private void calculateTrajectoryMeanSpeedByCellAndTimeslice() {
-    for(Map<Integer,Map<String,TrajectorySpeeds>> cellSpeeds : this.cellTimeSpeeds.values()) {
-      for(Map<String,TrajectorySpeeds> timesliceSpeeds : cellSpeeds.values()) {
-        for(TrajectorySpeeds trajectorySpeeds : timesliceSpeeds.values()) {
+    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
+      for(TimesliceSpeeds timesliceSpeeds : cellSpeeds.getTimeslicesSpeeds()) {
+        for(TrajectorySpeeds trajectorySpeeds : timesliceSpeeds.getTrajectoriesSpeeds()) {
           trajectorySpeeds.calculateMean();
         }
       }
@@ -89,8 +72,7 @@ public class GridSpeeds {
   }
 
   private void mapTrajectorySpeedByCellAndTimeslice(Database database, GridMapping grid) {
-    this.mappedCellsId = new HashSet<String>(); // TODO: tmp fix viz
-    this.cellTimeSpeeds = new HashMap<String,Map<Integer,Map<String,TrajectorySpeeds>>>();
+    this.cellTimeSpeeds = new HashMap<String,CellSpeeds>();
     //processed format
     // trajectory id (from sampling rate preprocessor); timestamp (in milliseconds); longitude; latitude; speed (in km/h)
     Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); longitude; latitude; speed (in km/h)
@@ -107,9 +89,7 @@ public class GridSpeeds {
       int mappedTimeslice = this.mapTimestampToSlice(positionTimestamp);
 
       if (mappedCell != null) { //border cells
-        TrajectorySpeeds trajectorySpeeds = this.getTrajectorySpeeds(mappedCell, mappedTimeslice, trajectoryId);
-        trajectorySpeeds.addSpeed(speed);
-        this.mappedCellsId.add(mappedCell);
+        this.addSpeeds(mappedCell, mappedTimeslice, trajectoryId, speed);
       }
       //change of cell, timeslice or trajectory is considered processing the summaries at the end
       trIdIter.advance();
@@ -121,26 +101,63 @@ public class GridSpeeds {
     return timestampDateTime.getSecondOfDay() / timeSliceLength;
   }
 
-  private TrajectorySpeeds getTrajectorySpeeds(String cell, int timeslice, String trajectoryId) {
-    Map<Integer,Map<String,TrajectorySpeeds>> timesliceSpeeds = this.cellTimeSpeeds.get(cell);
-    if (timesliceSpeeds == null) {
-      timesliceSpeeds = new HashMap<Integer, Map<String,TrajectorySpeeds>>();
-      this.cellTimeSpeeds.put(cell, timesliceSpeeds);
+  private void addSpeeds(String cell, int timeslice, String trajectoryId, double speed) {
+    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cell);
+    if (cellSpeeds == null) {
+      cellSpeeds = new CellSpeeds(cell);
+      this.cellTimeSpeeds.put(cell, cellSpeeds);
+    }
+    TimesliceSpeeds timesliceSpeeds = cellSpeeds.getTimesliceSpeeds(timeslice);
+    TrajectorySpeeds trajectorySpeeds = timesliceSpeeds.getTrajectorySpeeds(trajectoryId);
+    trajectorySpeeds.addSpeed(speed);
+    cellSpeeds.addSpeed(speed);
+  }
+
+  public Map<String, Double> calculateCellsPerformanceIndex() {
+    calculateTimeslicesMeanSpeed();
+    calculateCellsAverageOperationSpeed();
+
+    DescriptiveStatistics performanceIndexStats = new DescriptiveStatistics();
+    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
+      cellSpeeds.calculateFreeFlowSpeed();
+      performanceIndexStats.addValue(cellSpeeds.calculatePerfomanceIndex());
     }
 
-    Map<String,TrajectorySpeeds> trayectoriesSpeeds = timesliceSpeeds.get(timeslice);
-    if (trayectoriesSpeeds == null) {
-      trayectoriesSpeeds = new HashMap<String,TrajectorySpeeds>();
-      timesliceSpeeds.put(timeslice, trayectoriesSpeeds);
+    LOG.debug("performance index stats: ");
+    LOG.debug(performanceIndexStats.toString());
+    Map<String, Double> cellPerfomanceIndex = new HashMap<String, Double>();
+    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
+        double normalizedPerfomanceIndex = cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
+        cellPerfomanceIndex.put(cellSpeeds.getCellId(), normalizedPerfomanceIndex);
     }
+    return cellPerfomanceIndex;
+  }
 
-    TrajectorySpeeds trajectorySpeeds = trayectoriesSpeeds.get(trajectoryId);
-    if (trajectorySpeeds == null) {
-      trajectorySpeeds = new TrajectorySpeeds();
-      trayectoriesSpeeds.put(trajectoryId, trajectorySpeeds);
+  private void calculateCellsAverageOperationSpeed() {
+    List<String> cellsWithZeroOperationSpeed = new ArrayList<String>();
+    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
+      double averageOperationSpeed = cellSpeeds.calculateAverageOperationSpeed();
+      if (averageOperationSpeed <= 0) {
+        cellsWithZeroOperationSpeed.add(cellSpeeds.getCellId());
+      }
     }
+    double cellsWithZeroOperationSpeedPercentage = ((double)cellsWithZeroOperationSpeed.size()/this.cellTimeSpeeds.size())*100;
+    LOG.debug("total cells: " + this.cellTimeSpeeds.size());
+    LOG.debug("removing with zero operational speed: " + cellsWithZeroOperationSpeed.size() + " ("+(cellsWithZeroOperationSpeedPercentage)+"%)");
+    cellsWithZeroOperationSpeed.forEach(new Consumer<String>() {
+      @Override
+      public void accept(String cellId) {
+         cellTimeSpeeds.remove(cellId);
+      }
+    });
+  }
 
-    return trajectorySpeeds;
+  private void calculateTimeslicesMeanSpeed() {
+    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
+      for(TimesliceSpeeds timesliceSpeeds : cellSpeeds.getTimeslicesSpeeds()) {
+        timesliceSpeeds.calculateMean();
+      }
+    }
   }
 
 

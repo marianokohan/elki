@@ -1,5 +1,6 @@
 package ar.uba.fi.result;
 
+import java.util.Map;
 import java.util.Set;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -32,8 +33,7 @@ public class CongestionClusters implements Result {
 
   protected RoadNetwork roadNetwork;
 
-  //public List<SimpleFeature> mappedCells; //TODO: to be improved into clusters
-  public Set<String> mappedCellsId;
+  public Map<String, Double> cellsPerformanceIndex;
 
   public CongestionClusters(RoadNetwork gridMappedRoadNetwork) {
     this.roadNetwork = gridMappedRoadNetwork;
