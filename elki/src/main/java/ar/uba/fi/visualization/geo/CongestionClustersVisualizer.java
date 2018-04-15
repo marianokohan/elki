@@ -1,18 +1,22 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
-import java.io.File;
-import java.io.IOException;
+import java.util.List;
 
+import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
+import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
-import org.geotools.styling.LineSymbolizer;
+import org.geotools.styling.Fill;
+import org.geotools.styling.PolygonSymbolizer;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Stroke;
 import org.geotools.swing.JMapFrame;
+import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.GeometryDescriptor;
 
+import ar.uba.fi.result.CongestionCluster;
 import ar.uba.fi.result.CongestionClusters;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 /*
@@ -43,10 +47,11 @@ import de.lmu.ifi.dbs.elki.utilities.datastructures.hierarchy.Hierarchy;
  * @author mariano kohan
  *
  */
-public class GridVisualizer extends MapVisualizer implements ResultHandler {
+public class CongestionClustersVisualizer extends GridVisualizer implements ResultHandler {
 
-  protected static final Color GRID_LINE_COLOR = Color.YELLOW;
-  protected static final double GRID_LINE_WIDTH = 0.0001;
+  private static final Color CELL_LINE_COLOR = Color.ORANGE;
+  private static final double CELL_LINE_WIDTH = 2;
+
 
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
@@ -63,60 +68,50 @@ public class GridVisualizer extends MapVisualizer implements ResultHandler {
         congestionClusters = (CongestionClusters) result;
       }
     }
-    this.displayGrid(congestionClusters.getRoadNetwork());
+    this.displayCongestionClusters(congestionClusters.getRoadNetwork(), congestionClusters);
   }
 
-  public void displayGrid(RoadNetwork gridMappedRoadNetwork) {
+  public void displayCongestionClusters(RoadNetwork gridMappedRoadNetwork, CongestionClusters congestionClusters) {
+    DefaultFeatureCollection cellsFeatureCollection = new DefaultFeatureCollection();
+    for(CongestionCluster cluster : congestionClusters.getClusters()) {
+      List<SimpleFeature> clusterCellFeatures = cluster.getCellFeatures();
+      cellsFeatureCollection.addAll(clusterCellFeatures);
+    }
+    this.displayCongestionClustersCells(gridMappedRoadNetwork, cellsFeatureCollection);
+  }
+
+  protected void displayCongestionClustersCells(RoadNetwork gridMappedRoadNetwork, SimpleFeatureCollection cells) {
     SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
     SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
 
-    try {
-      System.out.println("total number of grid cells: " + grid.getFeatures().size());
-    }
-    catch(IOException e) {
-      de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
-    }
-
     MapContent map = new MapContent();
-    map.setTitle("Grid");
+    map.setTitle("Grid congestion clusters");
 
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
+    map.addLayer(createGridCellsClusterLayer(cells, grid, CELL_LINE_COLOR, CELL_LINE_WIDTH));
 
     JMapFrame.showMap(map);
   }
 
-  protected FeatureLayer createGridLayer(SimpleFeatureSource grid, Color strokeColor, double strokeWitdh) {
-    Rule rules[] = {createGridStyleRule(grid, strokeColor, strokeWitdh)};
-    return createLayer(grid, rules);
+  protected FeatureLayer createGridCellsClusterLayer(SimpleFeatureCollection cells, SimpleFeatureSource grid, Color strokeColor, double strokeWitdh) {
+    Rule rules[] = {createGridCellsClusterStyleRule(grid, strokeColor, strokeWitdh)};
+    return createLayer(cells, rules);
   }
 
-  protected Rule createGridStyleRule(SimpleFeatureSource featureSource, Color strokeColor, double strokeWitdh) {
+  protected Rule createGridCellsClusterStyleRule(SimpleFeatureSource featureSource, Color strokeColor, double strokeWitdh) {
     Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
-            filterFactory.literal(strokeWitdh));
+            filterFactory.literal(strokeWitdh), filterFactory.literal(0.75));
+    Fill markFill = styleFactory.createFill(filterFactory.literal(strokeColor), filterFactory.literal(0.5));
 
     GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
     String geometryAttributeName = geomDescriptor.getLocalName();
-    LineSymbolizer lineSymbolizer = styleFactory.createLineSymbolizer(markStroke, geometryAttributeName);
+    PolygonSymbolizer polygonSymbolizer = styleFactory.createPolygonSymbolizer(markStroke, markFill, geometryAttributeName);
 
     Rule lineRule = styleFactory.createRule();
-    lineRule.symbolizers().add(lineSymbolizer);
+    lineRule.symbolizers().add(polygonSymbolizer);
     return lineRule;
   }
 
-  //based initial testing
-  public static void main(String[] args) throws Exception {
-    File roadNetworkFile = new File(args[0]);
-    double[] area = { Double.parseDouble(args[1]),
-        Double.parseDouble(args[2]),
-        Double.parseDouble(args[3]),
-        Double.parseDouble(args[4])
-    };
-    double sideLen = Double.parseDouble(args[5]);
-    RoadNetwork gridMappedRoadNetwork = RoadNetwork.getInstance(roadNetworkFile);
-    gridMappedRoadNetwork.setGridMapping(area, sideLen);
-    new GridVisualizer().displayGrid(gridMappedRoadNetwork);
-  }
-
-
 }
+

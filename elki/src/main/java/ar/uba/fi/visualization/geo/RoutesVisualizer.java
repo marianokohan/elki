@@ -538,4 +538,22 @@ public class RoutesVisualizer extends MapVisualizer {
        fileToDelete.delete();
   }
 
+  protected FeatureLayer createGridLayer(SimpleFeatureSource grid, Color strokeColor, double strokeWitdh) {
+    Rule rules[] = {createGridStyleRule(grid, strokeColor, strokeWitdh)};
+    return createLayer(grid, rules);
+  }
+
+  protected Rule createGridStyleRule(SimpleFeatureSource featureSource, Color strokeColor, double strokeWitdh) {
+    Stroke markStroke = styleFactory.createStroke(filterFactory.literal(strokeColor),
+            filterFactory.literal(strokeWitdh));
+
+    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
+    String geometryAttributeName = geomDescriptor.getLocalName();
+    LineSymbolizer lineSymbolizer = styleFactory.createLineSymbolizer(markStroke, geometryAttributeName);
+
+    Rule lineRule = styleFactory.createRule();
+    lineRule.symbolizers().add(lineSymbolizer);
+    return lineRule;
+  }
+
 }

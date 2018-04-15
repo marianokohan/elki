@@ -1,12 +1,11 @@
 package ar.uba.fi.result;
 
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
-import ar.uba.fi.roadnetwork.RoadNetwork;
-import de.lmu.ifi.dbs.elki.result.Result;
+import org.opengis.feature.simple.SimpleFeature;
 /*
  This file is developed to run as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
@@ -26,43 +25,44 @@ import de.lmu.ifi.dbs.elki.result.Result;
  */
 
 /**
- * congestion clusters discovered from grid mapping (Liu et. al., 2017)
- *
  * @author mariano kohan
  *
  */
-public class CongestionClusters implements Result {
+public class CongestionCluster {
 
-  protected RoadNetwork roadNetwork;
-  protected List<CongestionCluster> clusters;
+  private Set<Cell> cells;
 
-  public Map<String, Double> cellsPerformanceIndex;
-
-  public CongestionClusters(RoadNetwork gridMappedRoadNetwork) {
-    this.roadNetwork = gridMappedRoadNetwork;
-    this.clusters = new LinkedList<CongestionCluster>();
+  public CongestionCluster(Cell cell) {
+    this.cells = new HashSet<Cell>();
+    this.cells.add(cell);
   }
 
-  @Override
-  public String getLongName() {
-    return "Grid mapping congestion clusters";
+  public void addCell(Cell cell) {
+    this.cells.add(cell);
   }
 
-  @Override
-  public String getShortName() {
-    return "Congestion clusters";
+  public List<SimpleFeature> getCellFeatures() {
+    List<SimpleFeature> cellFeatures = new LinkedList<SimpleFeature>();
+    for(Cell cell : cells) {
+      cellFeatures.add(cell.getFeature());
+    }
+    return cellFeatures;
   }
 
-  public RoadNetwork getRoadNetwork() {
-    return roadNetwork;
+  public int size() {
+    return this.cells.size();
   }
 
-  public List<CongestionCluster> getClusters() {
-    return clusters;
+  public boolean contains(Integer cellId) {
+    return this.cells.contains(new Cell(cellId));
   }
 
-  public void addCluster(CongestionCluster cluster) {
-    this.clusters.add(cluster);
+  public double performanceIndexSum() {
+    double sum = 0;
+    for(Cell cell : cells) {
+      sum += cell.getPerformanceIndex();
+    }
+    return sum;
   }
 
 }

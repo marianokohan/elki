@@ -23,6 +23,8 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import org.opengis.feature.simple.SimpleFeature;
+
 import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /**
@@ -37,22 +39,26 @@ public class CellSpeeds {
 
   private Map<Integer,TimesliceSpeeds> timeslicesSpeeds;
 
-  private String cellId;
+  private SimpleFeature cell;
   private DescriptiveStatistics speedStats;
   private double freeFlowSpeed;
   private double performaceIndex;
-  private double normalizedPerfomanceIndex;
+  private double normalizedPerformanceIndex;
 
   private double averageOperationSpeed;
 
-  public CellSpeeds(String cellId) {
-    this.cellId = cellId;
+  public CellSpeeds(SimpleFeature cell) {
+    this.cell = cell;
     this.timeslicesSpeeds = new HashMap<Integer, CellSpeeds.TimesliceSpeeds>();
     this.speedStats = new DescriptiveStatistics();
   }
 
   public String getCellId() {
-    return this.cellId;
+    return this.cell.getID();
+  }
+
+  public Integer getCellAttributeId() {
+    return (Integer)cell.getAttribute("id");
   }
 
   public TimesliceSpeeds getTimesliceSpeeds(int timeslice) {
@@ -99,8 +105,33 @@ public class CellSpeeds {
   }
 
   public double normalizePerformanceIndex(double minIndex, double maxIndex) {
-    this.normalizedPerfomanceIndex = ((performaceIndex - minIndex) / (maxIndex - minIndex)) * 100;
-    return normalizedPerfomanceIndex;
+    if (minIndex == maxIndex) {
+      this.normalizedPerformanceIndex = performaceIndex;
+    } else {
+      this.normalizedPerformanceIndex = ((performaceIndex - minIndex) / (maxIndex - minIndex)) * 100;
+    }
+    return normalizedPerformanceIndex;
+  }
+
+  public double getPerformanceIndex() {
+    return this.normalizedPerformanceIndex;
+  }
+
+  /*
+   * build dump to be used by adapted DBSCAN
+   * -> id attribute, minX, maxX, miny, maxY, (normalized) performanceIndex[, original performance index]
+   */
+  public String toDumpString() {
+    //StringBuffer cellDump = new StringBuffer(cell.getID()).append(";");
+    StringBuffer cellDump = new StringBuffer();
+    cellDump.append(getCellAttributeId()).append(";");
+    cellDump.append(cell.getBounds().getMinX()).append(";");
+    cellDump.append(cell.getBounds().getMaxX()).append(";");
+    cellDump.append(cell.getBounds().getMinY()).append(";");
+    cellDump.append(cell.getBounds().getMaxY()).append(";");
+    cellDump.append(normalizedPerformanceIndex).append(";");
+    cellDump.append(performaceIndex).append(";"); //TODO: for validations
+    return cellDump.toString();
   }
 
   public class TimesliceSpeeds {

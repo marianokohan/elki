@@ -1,17 +1,20 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.MapContent;
@@ -22,11 +25,9 @@ import org.geotools.styling.Stroke;
 import org.geotools.swing.JMapFrame;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
-import org.opengis.filter.FilterFactory2;
-import org.opengis.filter.identity.FeatureId;
 
 import ar.uba.fi.result.CongestionClusters;
+import ar.uba.fi.roadnetwork.GridMapping;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 /*
  This file is developed to run as part of ELKI:
@@ -88,28 +89,28 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     this.displayCells(gridMappedRoadNetwork, cellsFeatureCollection);
   }
 
-  public void displayCellsId(RoadNetwork gridMappedRoadNetwork, Set<String> cellsId) {
-    SimpleFeatureCollection cells = this.getCellFeatures(cellsId, gridMappedRoadNetwork);
+  public void displayCellsFeatureId(RoadNetwork gridMappedRoadNetwork, Set<String> cellsId) {
+    SimpleFeatureCollection cells = gridMappedRoadNetwork.getGridMapping().getCellFeatures(cellsId);
     this.displayCells(gridMappedRoadNetwork, cells);
   }
 
-  protected SimpleFeatureCollection getCellFeatures(Set<String> cellsId, RoadNetwork gridMappedRoadNetwork) {
-    FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
-    SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
+  public void displayCellsAttributeId(RoadNetwork gridMappedRoadNetwork, Set<Integer> cellsId) {
+    SimpleFeatureCollection cells = gridMappedRoadNetwork.getGridMapping().getCellFeatureFromAttributesId(cellsId);
+    SimpleFeatureIterator featureIterator = cells.features();
+    this.calculateGridDistance(featureIterator.next(), featureIterator.next(), gridMappedRoadNetwork.getGridMapping());
+    this.displayCells(gridMappedRoadNetwork, cells);
+  }
 
-    Set<FeatureId> fids = new HashSet<>();
-    for (String id : cellsId) {
-        FeatureId fid = ff.featureId(id);
-        fids.add(fid);
-    }
-    Filter filter = ff.id(fids);
-    try {
-      return grid.getFeatures(filter);
-    }
-    catch(IOException e) {
-      de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
-    }
-    return null;
+  protected void calculateGridDistance(SimpleFeature cell1, SimpleFeature cell2, GridMapping gridMapping) {
+    double distance = gridMapping.calculateDistance(cell1, cell2);
+    System.out.println("distance = " + Math.round(distance));
+    System.out.println(" -> " + cell1.getAttribute("id") + " - " + cell1);
+    System.out.println(" -> " + cell2.getAttribute("id") + " - " + cell2);
+  }
+
+  public void displayCellAttributeId(RoadNetwork gridMappedRoadNetwork, Integer cellsId) {
+    SimpleFeatureCollection cells = gridMappedRoadNetwork.getGridMapping().getCellFeatureFromAttributeId(cellsId);
+    this.displayCells(gridMappedRoadNetwork, cells);
   }
 
   protected void displayCells(RoadNetwork gridMappedRoadNetwork, SimpleFeatureCollection cells) {
@@ -122,6 +123,28 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
     map.addLayer(createGridCellsLayer(cells, grid, CELL_LINE_COLOR, CELL_LINE_WIDTH));
+
+    JMapFrame.showMap(map);
+  }
+
+
+  protected void displayCellNeighborhood(RoadNetwork gridMappedRoadNetwork, Integer cellAttributeId, double eps) throws NoSuchElementException, IOException {
+    SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
+    SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
+    //Set<Integer> selectedCellId = new HashSet<Integer>();
+    //selectedCellId.add(cellAttributeId);
+    //SimpleFeatureCollection cell = gridMappedRoadNetwork.getGridMapping().getCellFeatureFromAttributesId(selectedCellId);
+    //SimpleFeatureCollection neighborhood = gridMappedRoadNetwork.getGridMapping().getRangeForCell(cell.features().next(), eps);
+    SimpleFeatureCollection cell = gridMappedRoadNetwork.getGridMapping().getCellFeatureFromAttributeId(cellAttributeId);
+    SimpleFeatureCollection neighborhood = gridMappedRoadNetwork.getGridMapping().getRangeForCell(cellAttributeId, eps);
+
+    MapContent map = new MapContent();
+    map.setTitle("Mapped grid cells");
+
+    map.addLayer(createRoadNetworkLayer(featureSource));
+    map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
+    map.addLayer(createGridCellsLayer(neighborhood, grid, Color.PINK , CELL_LINE_WIDTH));
+    map.addLayer(createGridCellsLayer(cell, grid, CELL_LINE_COLOR, CELL_LINE_WIDTH));
 
     JMapFrame.showMap(map);
   }
@@ -176,6 +199,7 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
         }
       }
     }
+    nanIndexes = nanIndexes / 10; //counter for each category
     int totalCells = cellsPerformanceIndex.size();
     double nanIndexesPercentage = ((double)nanIndexes/(double)totalCells)*100;
     System.out.println("cells performance indexes:  total "+ totalCells +" - NaN: " + nanIndexes + " ("+ nanIndexesPercentage + "%)" );
@@ -186,7 +210,7 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
   public void displayCellsPerformanceIndex(RoadNetwork gridMappedRoadNetwork, Map<String, Double> cellsPerformanceIndex) {
     List<CellCategory> cellCategories = categorizeCells(cellsPerformanceIndex);
     for(CellCategory cellCategory : cellCategories) {
-      cellCategory.features = getCellFeatures(cellCategory.cells, gridMappedRoadNetwork);
+      cellCategory.features = gridMappedRoadNetwork.getGridMapping().getCellFeatures(cellCategory.cells);
     }
 
     SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
@@ -198,7 +222,6 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
     for(CellCategory cellCategory : cellCategories) {
-      getCellFeatures(cellCategory.cells, gridMappedRoadNetwork);
       map.addLayer(createGridCellsLayer(cellCategory.features, grid, cellCategory.fill, CELL_LINE_WIDTH));
     }
 
@@ -224,4 +247,52 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     return lineRule;
   }
 
+  //test distance function
+  public static void main(String[] args) throws NoSuchElementException, IOException {
+    File roadNetworkFile = new File(args[0]);
+    double[] area = { Double.parseDouble(args[1]),
+        Double.parseDouble(args[2]),
+        Double.parseDouble(args[3]),
+        Double.parseDouble(args[4])
+    };
+    double sideLen = Double.parseDouble(args[5]);
+    RoadNetwork gridMappedRoadNetwork = RoadNetwork.getInstance(roadNetworkFile);
+    gridMappedRoadNetwork.setGridMapping(area, sideLen);
+    //new GridVisualizer().displayGrid(gridMappedRoadNetwork);
+    //total number of grid cells: 92610
+    Integer[] cellIds = { 1, 5, 10, 300, 23152, 46305, 90000, 92610 };
+    //Integer[] cellIds = { 5, 10, 300, 23152, 46305, 90000, 92610 };
+    //Integer[] cellIds = {1, 300, 600};
+    //Integer[] cellIds = {1, 350}; //6 - 350 en segunda fila
+    //Integer[] cellIds = {1000, 1002}; //2
+    //Integer[] cellIds = {1000, 320}; //6
+    //Integer[] cellIds = {320, 1000}; //6 -> symmetric
+    //Integer[] cellIds = {1320, 1000}; //23e
+    //Integer[] cellIds = {1000, 1340}; //3
+    //Integer[] cellIds = {320, 1345}; //4
+    ////Integer[] cellIds = {1320, 1660}; //3
+    //Integer[] cellIds = {2000, 3020}; //9
+    //Integer[] cellIds = {4050, 3020}; //3
+    //Integer[] cellIds = {4050, 10220}; //18
+    Set<Integer> cellsIdSet = new HashSet<Integer>();
+    cellsIdSet.addAll(Arrays.asList(cellIds));
+    //new GridCellsVisualizer().displayCellsAttributeId(gridMappedRoadNetwork, cellsIdSet);
+    //new GridCellsVisualizer().displayCellAttributeId(gridMappedRoadNetwork, 92610);
+
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1, 1);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1, 2);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1, 3);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10, 1);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10, 2);
+    new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10, 3);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1000, 1);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1000, 2);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 1000, 3);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10000, 1);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10000, 2);
+    //new GridCellsVisualizer().displayCellNeighborhood(gridMappedRoadNetwork, 10000, 3);
+
+  }
+
 }
+

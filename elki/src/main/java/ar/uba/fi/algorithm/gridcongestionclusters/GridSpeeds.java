@@ -1,5 +1,7 @@
 package ar.uba.fi.algorithm.gridcongestionclusters;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -7,8 +9,11 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.opengis.feature.simple.SimpleFeature;
 
 import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TimesliceSpeeds;
 import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TrajectorySpeeds;
@@ -52,9 +57,11 @@ public class GridSpeeds {
 
   private static final Logging LOG = Logging.getLogger(GridSpeeds.class);
 
-  private Map<String, CellSpeeds> cellTimeSpeeds;
+  private Map<Integer, CellSpeeds> cellTimeSpeeds;
 
   private int timeSliceLength = 15 * 60; //15 min - TODO: consider parametrize
+
+  private Map<String, Double> cellPerfomanceIndex;
 
   public GridSpeeds(Database database, GridMapping grid) {
     mapTrajectorySpeedByCellAndTimeslice(database, grid);
@@ -72,7 +79,7 @@ public class GridSpeeds {
   }
 
   private void mapTrajectorySpeedByCellAndTimeslice(Database database, GridMapping grid) {
-    this.cellTimeSpeeds = new HashMap<String,CellSpeeds>();
+    this.cellTimeSpeeds = new HashMap<Integer,CellSpeeds>();
     //processed format
     // trajectory id (from sampling rate preprocessor); timestamp (in milliseconds); longitude; latitude; speed (in km/h)
     Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); longitude; latitude; speed (in km/h)
@@ -85,7 +92,7 @@ public class GridSpeeds {
       double speed = transationVector.doubleValue(3);
       String trajectoryId = trIdRelation.get(trIdIter).get(0);
 
-      String mappedCell = grid.snapPointToCell(positionCoordinate);
+      SimpleFeature mappedCell = grid.snapPointToCell(positionCoordinate);
       int mappedTimeslice = this.mapTimestampToSlice(positionTimestamp);
 
       if (mappedCell != null) { //border cells
@@ -96,16 +103,16 @@ public class GridSpeeds {
     }
   }
 
-  int mapTimestampToSlice(long timestamp) {
+  private int mapTimestampToSlice(long timestamp) {
     DateTime timestampDateTime = new DateTime(timestamp, DateTimeZone.UTC);
     return timestampDateTime.getSecondOfDay() / timeSliceLength;
   }
 
-  private void addSpeeds(String cell, int timeslice, String trajectoryId, double speed) {
-    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cell);
+  private void addSpeeds(SimpleFeature cell, int timeslice, String trajectoryId, double speed) {
+    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cell.getAttribute("id"));
     if (cellSpeeds == null) {
       cellSpeeds = new CellSpeeds(cell);
-      this.cellTimeSpeeds.put(cell, cellSpeeds);
+      this.cellTimeSpeeds.put(cellSpeeds.getCellAttributeId(), cellSpeeds);
     }
     TimesliceSpeeds timesliceSpeeds = cellSpeeds.getTimesliceSpeeds(timeslice);
     TrajectorySpeeds trajectorySpeeds = timesliceSpeeds.getTrajectorySpeeds(trajectoryId);
@@ -125,7 +132,7 @@ public class GridSpeeds {
 
     LOG.debug("performance index stats: ");
     LOG.debug(performanceIndexStats.toString());
-    Map<String, Double> cellPerfomanceIndex = new HashMap<String, Double>();
+    cellPerfomanceIndex = new HashMap<String, Double>();
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
         double normalizedPerfomanceIndex = cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
         cellPerfomanceIndex.put(cellSpeeds.getCellId(), normalizedPerfomanceIndex);
@@ -134,20 +141,20 @@ public class GridSpeeds {
   }
 
   private void calculateCellsAverageOperationSpeed() {
-    List<String> cellsWithZeroOperationSpeed = new ArrayList<String>();
+    List<Integer> cellsWithZeroOperationSpeed = new ArrayList<Integer>();
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
       double averageOperationSpeed = cellSpeeds.calculateAverageOperationSpeed();
       if (averageOperationSpeed <= 0) {
-        cellsWithZeroOperationSpeed.add(cellSpeeds.getCellId());
+        cellsWithZeroOperationSpeed.add(cellSpeeds.getCellAttributeId());
       }
     }
     double cellsWithZeroOperationSpeedPercentage = ((double)cellsWithZeroOperationSpeed.size()/this.cellTimeSpeeds.size())*100;
     LOG.debug("total cells: " + this.cellTimeSpeeds.size());
     LOG.debug("removing with zero operational speed: " + cellsWithZeroOperationSpeed.size() + " ("+(cellsWithZeroOperationSpeedPercentage)+"%)");
-    cellsWithZeroOperationSpeed.forEach(new Consumer<String>() {
+    cellsWithZeroOperationSpeed.forEach(new Consumer<Integer>() {
       @Override
-      public void accept(String cellId) {
-         cellTimeSpeeds.remove(cellId);
+      public void accept(Integer cellAttributeId) {
+         cellTimeSpeeds.remove(cellAttributeId);
       }
     });
   }
@@ -160,6 +167,42 @@ public class GridSpeeds {
     }
   }
 
+  public double sumPerformanceIndex(SimpleFeatureCollection featureCells) {
+    double sci = 0;
+    for(SimpleFeatureIterator iterator = featureCells.features(); iterator.hasNext();) {
+      SimpleFeature featureCell = iterator.next();
+      CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(featureCell.getAttribute("id"));
+      if (cellSpeeds != null) { //exists mapped cell
+        sci += cellSpeeds.getPerformanceIndex();
+      }
+    }
+    return sci;
+  }
+
+  public double getPerformanceIndex(Integer cellAttributeId) {
+    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cellAttributeId);
+    if (cellSpeeds != null) { //exists mapped cell
+      return cellSpeeds.getPerformanceIndex();
+    }
+    return 0;
+  }
+
+  /*
+   * build cells dump to be used by adapted DBSCAN
+   * -> id attribute, minX, maxX, miny, maxY, (normalized) performanceIndex[, original performance index]
+   */
+  public void dumpCells() {
+    try {
+      FileWriter cellsDump = new FileWriter("mapped_cells.txt");
+      for(CellSpeeds cellSpeed : this.cellTimeSpeeds.values()) {
+        cellsDump.append(cellSpeed.toDumpString()).append("\n");
+      }
+      cellsDump.close();
+    }
+    catch(IOException e) {
+      de.lmu.ifi.dbs.elki.logging.LoggingUtil.exception(e);
+    }
+  }
 
   //used to test calculations
   public static void main(String[] args) {
