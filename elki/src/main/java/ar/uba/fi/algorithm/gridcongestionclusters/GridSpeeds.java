@@ -88,7 +88,7 @@ public class GridSpeeds {
     for(DBIDIter triter = trRelation.iterDBIDs(); triter.valid(); triter.advance()) {
       DoubleVector transationVector = trRelation.get(triter);
       Coordinate positionCoordinate =  new Coordinate(transationVector.doubleValue(1), transationVector.doubleValue(2));
-      long positionTimestamp = transationVector.longValue(0); //TODO: VERif (min debug)
+      long positionTimestamp = transationVector.longValue(0);
       double speed = transationVector.doubleValue(3);
       String trajectoryId = trIdRelation.get(trIdIter).get(0);
 
