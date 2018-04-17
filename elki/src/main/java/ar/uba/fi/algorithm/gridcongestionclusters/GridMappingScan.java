@@ -4,8 +4,10 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -18,6 +20,7 @@ import ar.uba.fi.result.CongestionClusters;
 import ar.uba.fi.roadnetwork.GridMapping;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 import de.lmu.ifi.dbs.elki.algorithm.Algorithm;
+import de.lmu.ifi.dbs.elki.data.DoubleVector;
 /*
  This file is developed to run as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
@@ -38,6 +41,8 @@ import de.lmu.ifi.dbs.elki.algorithm.Algorithm;
 import de.lmu.ifi.dbs.elki.data.type.TypeInformation;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
 import de.lmu.ifi.dbs.elki.database.Database;
+import de.lmu.ifi.dbs.elki.database.ids.DBIDIter;
+import de.lmu.ifi.dbs.elki.database.relation.Relation;
 import de.lmu.ifi.dbs.elki.logging.Logging;
 import de.lmu.ifi.dbs.elki.result.Result;
 import de.lmu.ifi.dbs.elki.utilities.optionhandling.AbstractParameterizer;
@@ -62,10 +67,11 @@ public class GridMappingScan implements Algorithm {
   private static final Logging LOG = Logging.getLogger(GridMappingScan.class);
 
   protected RoadNetwork roadNetwork;
-  protected GridSpeeds gridSpeeds;
 
   private int eps;
   private double minPts;
+
+  private Map<Integer, Double> cellsPerfomanceIndex;
 
   public GridMappingScan(File roadNetworkFile, double areaXMin, double areaXMax, double areaYMax, double areaYMin,  double sideLen, int eps, double minPts) {
     double[] area = { areaXMin, areaXMax, areaYMax, areaYMin};
@@ -83,27 +89,33 @@ public class GridMappingScan implements Algorithm {
 
   @Override
   public Result run(Database database) {
-    LOG.info(String.format("[%s] Mapping speeds into grid ...", new Date()));
-    this.gridSpeeds = new GridSpeeds(database, this.roadNetwork.getGridMapping());
-    /*
-     * TODO: si se define solo armado celdas
-     *  - rename ?
-     *  result MappedCells con listado MappedCells
-     *    -> id feature, id attribute, minX, maxX, miny, maxY, performanceIndex
-     *    TEMPORALMENTE para probar esto se genera en archivo (para validar uso DBSCAN directo)
-     *    (sig. llamada)
-     *
-     *
-     *Map<String, Double> cellsPerformanceIndex = this.gridSpeeds.calculateCellsPerformanceIndex();
-     *this.gridSpeeds.dumpCells();
-     */
-    LOG.info(String.format("[%s] Calculating cells performance index ...", new Date()));
-    this.gridSpeeds.calculateCellsPerformanceIndex();
+    LOG.info(String.format("[%s] Load cells performance index ...", new Date()));
+    this.buildCellsPerformanceIndexMap(database);
 
     CongestionClusters result = new CongestionClusters(this.roadNetwork);
     LOG.info(String.format("[%s] Discovering congestion clusters ...", new Date()));
     this.dbScan(this.roadNetwork.getGridMapping(), result);
     return result;
+  }
+
+  private void buildCellsPerformanceIndexMap(Database database) {
+    cellsPerfomanceIndex = new HashMap<Integer, Double>();
+    //id cell, (normalized) performanceIndex
+    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null);
+    for(DBIDIter triter = trRelation.iterDBIDs(); triter.valid(); triter.advance()) {
+      DoubleVector transationVector = trRelation.get(triter);
+      int cellId = transationVector.intValue(0);
+      double performanceIndex = transationVector.doubleValue(1);
+      cellsPerfomanceIndex.put(cellId, performanceIndex);
+    }
+  }
+
+  public double getPerformanceIndex(Integer cellAttributeId) {
+    Double performanceIndex = this.cellsPerfomanceIndex.get(cellAttributeId);
+    if (performanceIndex != null) { //exists mapped cell
+      return performanceIndex;
+    }
+    return 0;
   }
 
   private void dbScan(GridMapping grid, CongestionClusters result) {
@@ -118,7 +130,7 @@ public class GridMappingScan implements Algorithm {
           processedCellsId.add(cellId);
           SimpleFeatureCollection neighboorhood = grid.getRangeForCell(featureCell, eps);
           double cellSCI = this.sumPerformanceIndex(neighboorhood, processedCellsId, noiseCellsId, null);
-          double cellPerformanceIndex = this.gridSpeeds.getPerformanceIndex(cellId);
+          double cellPerformanceIndex = this.getPerformanceIndex(cellId);
           if (cellSCI >= minPts) {
             Cell coreCell = new Cell(cellId, featureCell,
                                       cellSCI, cellPerformanceIndex,
@@ -156,7 +168,7 @@ public class GridMappingScan implements Algorithm {
       Integer cellId = (Integer)neighboordCellFeature.getAttribute("id");
       if ((currentCluster != null && currentCluster.contains(cellId))
           || shouldProcessCell(processedCellsId, noiseCellsId, cellId))  {
-        sci += this.gridSpeeds.getPerformanceIndex(cellId);
+        sci += this.getPerformanceIndex(cellId);
       }
     }
     return sci;
@@ -184,7 +196,7 @@ public class GridMappingScan implements Algorithm {
       if (shouldProcessCell(processedCellsId, noiseCellsId, neighboordCellId)) {
         SimpleFeatureCollection neighboorhoodL2 = grid.getRangeForCell(neighboordCellFeature, eps);
         double neighboordCellSCI = this.sumPerformanceIndex(neighboorhoodL2, processedCellsId, noiseCellsId, currentCluster);
-        double neighboordCellPerformanceIndex = this.gridSpeeds.getPerformanceIndex(neighboordCellId);
+        double neighboordCellPerformanceIndex = this.getPerformanceIndex(neighboordCellId);
         Cell neighboordCell = new Cell(neighboordCellId, neighboordCellFeature, neighboordCellSCI, neighboordCellPerformanceIndex);
         currentCluster.addCell(neighboordCell);
         processedCellsId.add(neighboordCellId);

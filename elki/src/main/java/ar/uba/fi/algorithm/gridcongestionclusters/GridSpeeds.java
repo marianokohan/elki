@@ -3,6 +3,7 @@ package ar.uba.fi.algorithm.gridcongestionclusters;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,9 @@ public class GridSpeeds {
   private Map<String, Double> cellPerfomanceIndex;
 
   public GridSpeeds(Database database, GridMapping grid) {
+    LOG.info(String.format("[%s] Maping Trajectory Speed by Cell and Timeslice ...", new Date()));
     mapTrajectorySpeedByCellAndTimeslice(database, grid);
+    LOG.info(String.format("[%s] Calculating Trajectory Mean Speed by Cell and Timeslice ...", new Date()));
     calculateTrajectoryMeanSpeedByCellAndTimeslice();
   }
 
@@ -85,6 +88,7 @@ public class GridSpeeds {
     Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); longitude; latitude; speed (in km/h)
     Relation<LabelList> trIdRelation = database.getRelation(TypeUtil.LABELLIST, null); //list with trajectory Id
     DBIDIter trIdIter = trIdRelation.iterDBIDs();
+    int row = 0;
     for(DBIDIter triter = trRelation.iterDBIDs(); triter.valid(); triter.advance()) {
       DoubleVector transationVector = trRelation.get(triter);
       Coordinate positionCoordinate =  new Coordinate(transationVector.doubleValue(1), transationVector.doubleValue(2));
@@ -92,6 +96,7 @@ public class GridSpeeds {
       double speed = transationVector.doubleValue(3);
       String trajectoryId = trIdRelation.get(trIdIter).get(0);
 
+      this.dumpRow(row++, trajectoryId);
       SimpleFeature mappedCell = grid.snapPointToCell(positionCoordinate);
       int mappedTimeslice = this.mapTimestampToSlice(positionTimestamp);
 
@@ -100,6 +105,12 @@ public class GridSpeeds {
       }
       //change of cell, timeslice or trajectory is considered processing the summaries at the end
       trIdIter.advance();
+    }
+  }
+
+  private void dumpRow(int row, String trajectoryId) {
+    if (row % 1000 == 0) {
+      LOG.debug(String.format("processing row %d for trajectory %s ...", row, trajectoryId));
     }
   }
 
@@ -121,9 +132,12 @@ public class GridSpeeds {
   }
 
   public Map<String, Double> calculateCellsPerformanceIndex() {
+    LOG.info(String.format("[%s] Calculating Timeslices Mean Speed ...", new Date()));
     calculateTimeslicesMeanSpeed();
+    LOG.info(String.format("[%s] Calculating Cells Average Operation Speed ...", new Date()));
     calculateCellsAverageOperationSpeed();
 
+    LOG.info(String.format("[%s] Calculating performance index ...", new Date()));
     DescriptiveStatistics performanceIndexStats = new DescriptiveStatistics();
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
       cellSpeeds.calculateFreeFlowSpeed();
@@ -133,6 +147,7 @@ public class GridSpeeds {
     LOG.debug("performance index stats: ");
     LOG.debug(performanceIndexStats.toString());
     cellPerfomanceIndex = new HashMap<String, Double>();
+    LOG.info(String.format("[%s] Normalizing performance index ...", new Date()));
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
         double normalizedPerfomanceIndex = cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
         cellPerfomanceIndex.put(cellSpeeds.getCellId(), normalizedPerfomanceIndex);
@@ -189,7 +204,7 @@ public class GridSpeeds {
 
   /*
    * build cells dump to be used by adapted DBSCAN
-   * -> id attribute, minX, maxX, miny, maxY, (normalized) performanceIndex[, original performance index]
+   * --> id attribute, (normalized) performanceIndex
    */
   public void dumpCells() {
     try {
