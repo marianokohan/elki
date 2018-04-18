@@ -40,6 +40,7 @@ public class CellSpeeds {
   private Map<Integer,TimesliceSpeeds> timeslicesSpeeds;
 
   private SimpleFeature cell;
+  private Integer cellId;
   private DescriptiveStatistics speedStats;
   private double freeFlowSpeed;
   private double performaceIndex;
@@ -53,12 +54,22 @@ public class CellSpeeds {
     this.speedStats = new DescriptiveStatistics();
   }
 
+  public CellSpeeds(Integer cellId) {
+    this.cellId = cellId;
+    this.timeslicesSpeeds = new HashMap<Integer, CellSpeeds.TimesliceSpeeds>();
+    this.speedStats = new DescriptiveStatistics();
+  }
+
   public String getCellId() {
     return this.cell.getID();
   }
 
   public Integer getCellAttributeId() {
-    return (Integer)cell.getAttribute("id");
+    if (cell != null) {
+      return (Integer)cell.getAttribute("id");
+    } else {
+      return this.cellId;
+    }
   }
 
   public TimesliceSpeeds getTimesliceSpeeds(int timeslice) {

@@ -29,6 +29,8 @@ import org.geotools.factory.CommonFactoryFinder;
  */
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.grid.Grids;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
@@ -45,6 +47,8 @@ import de.lmu.ifi.dbs.elki.logging.Logging;
  *
  */
 public class GridMapping {
+
+  public int timeSliceLength = 15 * 60; //15 min - TODO: consider parametrize
 
   private SimpleFeatureSource grid;
   private ReferencedEnvelope bounds;
@@ -204,6 +208,11 @@ public class GridMapping {
   public SimpleFeatureCollection getRangeForCell(Integer cellId, double range) throws IOException {
     SimpleFeature cell = this.getCellFeatureFromAttributeId(cellId).features().next();
     return this.getRangeForCell(cell, range);
+  }
+
+  public int mapTimestampToSlice(long timestamp) {
+    DateTime timestampDateTime = new DateTime(timestamp, DateTimeZone.UTC);
+    return timestampDateTime.getSecondOfDay() / timeSliceLength;
   }
 
 }

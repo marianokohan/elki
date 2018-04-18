@@ -60,14 +60,10 @@ public class GridSpeeds {
 
   private Map<Integer, CellSpeeds> cellTimeSpeeds;
 
-  private int timeSliceLength = 15 * 60; //15 min - TODO: consider parametrize
-
-  private Map<String, Double> cellPerfomanceIndex;
-
   public GridSpeeds(Database database, GridMapping grid) {
-    LOG.info(String.format("[%s] Maping Trajectory Speed by Cell and Timeslice ...", new Date()));
-    mapTrajectorySpeedByCellAndTimeslice(database, grid);
-    LOG.info(String.format("[%s] Calculating Trajectory Mean Speed by Cell and Timeslice ...", new Date()));
+    LOG.info(String.format("[%s] Creating trajectory speed counters by cell and timeslice ...", new Date()));
+    createTrajectorySpeedCountersByCellAndTimeslice(database, grid);
+    LOG.info(String.format("[%s] Calculating trajectory mean speed by cell and timeslice ...", new Date()));
     calculateTrajectoryMeanSpeedByCellAndTimeslice();
   }
 
@@ -81,48 +77,42 @@ public class GridSpeeds {
     }
   }
 
-  private void mapTrajectorySpeedByCellAndTimeslice(Database database, GridMapping grid) {
+  private void createTrajectorySpeedCountersByCellAndTimeslice(Database database, GridMapping grid) {
     this.cellTimeSpeeds = new HashMap<Integer,CellSpeeds>();
     //processed format
-    // trajectory id (from sampling rate preprocessor); timestamp (in milliseconds); longitude; latitude; speed (in km/h)
-    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); longitude; latitude; speed (in km/h)
+    // trajectory id (from sampling rate preprocessor); timeslice index (start from 0); cell Id (feature attribute); speed (in km/h)
+    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timeslice index (start from 0); cell Id (feature attribute); speed (in km/h)
     Relation<LabelList> trIdRelation = database.getRelation(TypeUtil.LABELLIST, null); //list with trajectory Id
     DBIDIter trIdIter = trIdRelation.iterDBIDs();
     int row = 0;
     for(DBIDIter triter = trRelation.iterDBIDs(); triter.valid(); triter.advance()) {
       DoubleVector transationVector = trRelation.get(triter);
-      Coordinate positionCoordinate =  new Coordinate(transationVector.doubleValue(1), transationVector.doubleValue(2));
-      long positionTimestamp = transationVector.longValue(0);
-      double speed = transationVector.doubleValue(3);
+
+      int mappedTimeslice = transationVector.intValue(0);
+      int mappedCellId = transationVector.intValue(1);
+      double speed = transationVector.doubleValue(2);
+
       String trajectoryId = trIdRelation.get(trIdIter).get(0);
 
       this.dumpRow(row++, trajectoryId);
-      SimpleFeature mappedCell = grid.snapPointToCell(positionCoordinate);
-      int mappedTimeslice = this.mapTimestampToSlice(positionTimestamp);
 
-      if (mappedCell != null) { //border cells
-        this.addSpeeds(mappedCell, mappedTimeslice, trajectoryId, speed);
-      }
+      this.addSpeeds(mappedCellId, mappedTimeslice, trajectoryId, speed);
+
       //change of cell, timeslice or trajectory is considered processing the summaries at the end
       trIdIter.advance();
     }
   }
 
   private void dumpRow(int row, String trajectoryId) {
-    if (row % 1000 == 0) {
+    if (row % 10000 == 0) {
       LOG.debug(String.format("processing row %d for trajectory %s ...", row, trajectoryId));
     }
   }
 
-  private int mapTimestampToSlice(long timestamp) {
-    DateTime timestampDateTime = new DateTime(timestamp, DateTimeZone.UTC);
-    return timestampDateTime.getSecondOfDay() / timeSliceLength;
-  }
-
-  private void addSpeeds(SimpleFeature cell, int timeslice, String trajectoryId, double speed) {
-    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cell.getAttribute("id"));
+  private void addSpeeds(int cellId, int timeslice, String trajectoryId, double speed) {
+    CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cellId);
     if (cellSpeeds == null) {
-      cellSpeeds = new CellSpeeds(cell);
+      cellSpeeds = new CellSpeeds(cellId);
       this.cellTimeSpeeds.put(cellSpeeds.getCellAttributeId(), cellSpeeds);
     }
     TimesliceSpeeds timesliceSpeeds = cellSpeeds.getTimesliceSpeeds(timeslice);
@@ -131,7 +121,7 @@ public class GridSpeeds {
     cellSpeeds.addSpeed(speed);
   }
 
-  public Map<String, Double> calculateCellsPerformanceIndex() {
+  public void calculateCellsPerformanceIndex() {
     LOG.info(String.format("[%s] Calculating Timeslices Mean Speed ...", new Date()));
     calculateTimeslicesMeanSpeed();
     LOG.info(String.format("[%s] Calculating Cells Average Operation Speed ...", new Date()));
@@ -146,13 +136,10 @@ public class GridSpeeds {
 
     LOG.debug("performance index stats: ");
     LOG.debug(performanceIndexStats.toString());
-    cellPerfomanceIndex = new HashMap<String, Double>();
     LOG.info(String.format("[%s] Normalizing performance index ...", new Date()));
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
         double normalizedPerfomanceIndex = cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
-        cellPerfomanceIndex.put(cellSpeeds.getCellId(), normalizedPerfomanceIndex);
     }
-    return cellPerfomanceIndex;
   }
 
   private void calculateCellsAverageOperationSpeed() {
