@@ -17,11 +17,7 @@ import org.joda.time.DateTimeZone;
 import org.opengis.feature.simple.SimpleFeature;
 
 import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TimesliceSpeeds;
-import ar.uba.fi.algorithm.gridcongestionclusters.CellSpeeds.TrajectorySpeeds;
 import ar.uba.fi.roadnetwork.GridMapping;
-
-import com.vividsolutions.jts.geom.Coordinate;
-
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.LabelList;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
@@ -61,46 +57,77 @@ public class GridSpeeds {
   private Map<Integer, CellSpeeds> cellTimeSpeeds;
 
   public GridSpeeds(Database database, GridMapping grid) {
-    LOG.info(String.format("[%s] Creating trajectory speed counters by cell and timeslice ...", new Date()));
+    LOG.info(String.format("[%s] Creating trajectory speed counters (with trajectory mean and cell free flow speeds) by cell and timeslice ...", new Date()));
     createTrajectorySpeedCountersByCellAndTimeslice(database, grid);
-    LOG.info(String.format("[%s] Calculating trajectory mean speed by cell and timeslice ...", new Date()));
-    calculateTrajectoryMeanSpeedByCellAndTimeslice();
-  }
-
-  private void calculateTrajectoryMeanSpeedByCellAndTimeslice() {
-    for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
-      for(TimesliceSpeeds timesliceSpeeds : cellSpeeds.getTimeslicesSpeeds()) {
-        for(TrajectorySpeeds trajectorySpeeds : timesliceSpeeds.getTrajectoriesSpeeds()) {
-          trajectorySpeeds.calculateMean();
-        }
-      }
-    }
   }
 
   private void createTrajectorySpeedCountersByCellAndTimeslice(Database database, GridMapping grid) {
     this.cellTimeSpeeds = new HashMap<Integer,CellSpeeds>();
     //processed format
     // trajectory id (from sampling rate preprocessor); timeslice index (start from 0); cell Id (feature attribute); speed (in km/h)
+    // order by cellId, timeslice index, trajectory id
     Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timeslice index (start from 0); cell Id (feature attribute); speed (in km/h)
     Relation<LabelList> trIdRelation = database.getRelation(TypeUtil.LABELLIST, null); //list with trajectory Id
     DBIDIter trIdIter = trIdRelation.iterDBIDs();
     int row = 0;
+
+    int mappedCellId = -1;
+    int mappedTimeslice = -1;
+    String trajectoryId = null;
+    double speed;
+
+    int currentCellId = -1;
+    int currentTimeSlice = -1;
+    String currentTrajectoryId = null;
+
+    DescriptiveStatistics trajectorySpeedStats = new DescriptiveStatistics();
+    DescriptiveStatistics cellSpeedStats = new DescriptiveStatistics();
+
     for(DBIDIter triter = trRelation.iterDBIDs(); triter.valid(); triter.advance()) {
       DoubleVector transationVector = trRelation.get(triter);
 
-      int mappedTimeslice = transationVector.intValue(0);
-      int mappedCellId = transationVector.intValue(1);
-      double speed = transationVector.doubleValue(2);
+      mappedTimeslice = transationVector.intValue(0);
+      mappedCellId = transationVector.intValue(1);
+      speed = transationVector.doubleValue(2);
 
-      String trajectoryId = trIdRelation.get(trIdIter).get(0);
+      trajectoryId = trIdRelation.get(trIdIter).get(0);
+
+      if (currentTrajectoryId == null) {
+        currentTrajectoryId = trajectoryId;
+        currentTimeSlice = mappedTimeslice;
+        currentCellId = mappedCellId;
+      }
 
       this.dumpRow(row++, trajectoryId);
 
-      this.addSpeeds(mappedCellId, mappedTimeslice, trajectoryId, speed);
+      if (currentCellId != mappedCellId) {
+        this.addTrajectoryMeanSpeed(currentCellId, currentTimeSlice, currentTrajectoryId, trajectorySpeedStats);
+        trajectorySpeedStats = new DescriptiveStatistics();
+        trajectorySpeedStats.addValue(speed);
+        this.addCellFreeFlowSpeed(currentCellId, cellSpeedStats);
+        cellSpeedStats = new DescriptiveStatistics();
+        cellSpeedStats.addValue(speed);
+      } else {
+        cellSpeedStats.addValue(speed);
+        if ( (mappedTimeslice != currentTimeSlice) ||  (!currentTrajectoryId.equals(trajectoryId)) ) {
+          this.addTrajectoryMeanSpeed(currentCellId, currentTimeSlice, currentTrajectoryId, trajectorySpeedStats);
+          trajectorySpeedStats = new DescriptiveStatistics();
+          trajectorySpeedStats.addValue(speed);
+        } else {
+          trajectorySpeedStats.addValue(speed);
+        }
+      }
 
       //change of cell, timeslice or trajectory is considered processing the summaries at the end
       trIdIter.advance();
+      currentTrajectoryId = trajectoryId;
+      currentTimeSlice = mappedTimeslice;
+      currentCellId = mappedCellId;
     }
+
+    this.addTrajectoryMeanSpeed(currentCellId, currentTimeSlice, currentTrajectoryId, trajectorySpeedStats);
+    this.addCellFreeFlowSpeed(currentCellId, cellSpeedStats);
+
   }
 
   private void dumpRow(int row, String trajectoryId) {
@@ -109,16 +136,18 @@ public class GridSpeeds {
     }
   }
 
-  private void addSpeeds(int cellId, int timeslice, String trajectoryId, double speed) {
+  private void addTrajectoryMeanSpeed(int cellId, int timeslice, String trajectoryId, DescriptiveStatistics trajectorySpeedStats) {
     CellSpeeds cellSpeeds = this.cellTimeSpeeds.get(cellId);
     if (cellSpeeds == null) {
       cellSpeeds = new CellSpeeds(cellId);
       this.cellTimeSpeeds.put(cellSpeeds.getCellAttributeId(), cellSpeeds);
     }
     TimesliceSpeeds timesliceSpeeds = cellSpeeds.getTimesliceSpeeds(timeslice);
-    TrajectorySpeeds trajectorySpeeds = timesliceSpeeds.getTrajectorySpeeds(trajectoryId);
-    trajectorySpeeds.addSpeed(speed);
-    cellSpeeds.addSpeed(speed);
+    timesliceSpeeds.addTrajectoryMeanSpeeds(trajectoryId, trajectorySpeedStats);
+  }
+
+  private void addCellFreeFlowSpeed(int cellId, DescriptiveStatistics cellSpeedStats) {
+    this.cellTimeSpeeds.get(cellId).calculateFreeFlowSpeed(cellSpeedStats);
   }
 
   public void calculateCellsPerformanceIndex() {
@@ -127,10 +156,9 @@ public class GridSpeeds {
     LOG.info(String.format("[%s] Calculating Cells Average Operation Speed ...", new Date()));
     calculateCellsAverageOperationSpeed();
 
-    LOG.info(String.format("[%s] Calculating performance index ...", new Date()));
     DescriptiveStatistics performanceIndexStats = new DescriptiveStatistics();
+    LOG.info(String.format("[%s] Calculating performance index ...", new Date()));
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
-      cellSpeeds.calculateFreeFlowSpeed();
       performanceIndexStats.addValue(cellSpeeds.calculatePerfomanceIndex());
     }
 

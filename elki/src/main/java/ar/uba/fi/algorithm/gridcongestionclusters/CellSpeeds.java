@@ -38,7 +38,6 @@ public class CellSpeeds {
   private Map<Integer,TimesliceSpeeds> timeslicesSpeeds;
 
   private Integer cellId;
-  private DescriptiveStatistics speedStats;
   private double freeFlowSpeed;
   private double performaceIndex;
   private double normalizedPerformanceIndex;
@@ -48,7 +47,6 @@ public class CellSpeeds {
   public CellSpeeds(Integer cellId) {
     this.cellId = cellId;
     this.timeslicesSpeeds = new HashMap<Integer, CellSpeeds.TimesliceSpeeds>();
-    this.speedStats = new DescriptiveStatistics();
   }
 
   public Integer getCellAttributeId() {
@@ -68,13 +66,8 @@ public class CellSpeeds {
     return this.timeslicesSpeeds.values();
   }
 
-  public void addSpeed(double speed) {
-    this.speedStats.addValue(speed);
-  }
-
-  public void calculateFreeFlowSpeed() {
-    this.freeFlowSpeed = this.speedStats.getPercentile(95);
-    this.speedStats = null;
+  public void calculateFreeFlowSpeed(DescriptiveStatistics speedStats) {
+    this.freeFlowSpeed = speedStats.getPercentile(95);
     if (Double.isNaN(freeFlowSpeed)) {
       LOG.warning("cell with free flow speed NaN!");
     }
@@ -126,34 +119,34 @@ public class CellSpeeds {
 
   public class TimesliceSpeeds {
 
-    private Map<String,TrajectorySpeeds> trajectoriesSpeeds;
+    private Map<String,Double> trajectoriesMeanSpeeds;
     private double meanSpeed;
 
     public TimesliceSpeeds() {
-      this.trajectoriesSpeeds = new HashMap<String, CellSpeeds.TrajectorySpeeds>();
+      this.trajectoriesMeanSpeeds = new HashMap<String, Double>();
     }
 
     public double getMean() {
       return this.meanSpeed;
     }
 
-    public TrajectorySpeeds getTrajectorySpeeds(String trajectoryId) {
-      TrajectorySpeeds trajectorySpeeds = trajectoriesSpeeds.get(trajectoryId);
-      if (trajectorySpeeds == null) {
-        trajectorySpeeds = new TrajectorySpeeds();
-        trajectoriesSpeeds.put(trajectoryId, trajectorySpeeds);
-      }
-      return trajectorySpeeds;
+    public void addTrajectoryMeanSpeeds(String trajectoryId, DescriptiveStatistics trajectorySpeedStats) {
+        double trajectoryMeanSpeed = trajectorySpeedStats.getMean();
+        if (Double.isNaN(trajectoryMeanSpeed)) {
+          LOG.warning("trajectory mean speed NaN!");
+        } else {
+          trajectoriesMeanSpeeds.put(trajectoryId, trajectorySpeedStats.getMean());
+        }
     }
 
-    public Collection<TrajectorySpeeds> getTrajectoriesSpeeds() {
-      return this.trajectoriesSpeeds.values();
+    public Collection<Double> getTrajectoriesMeanSpeeds() {
+      return this.trajectoriesMeanSpeeds.values();
     }
 
     public void calculateMean() {
       DescriptiveStatistics speedStats = new DescriptiveStatistics();
-      for(TrajectorySpeeds trajectorySpeed : this.trajectoriesSpeeds.values()) {
-        speedStats.addValue(trajectorySpeed.getMean());
+      for(Double trajectoryMeanSpeed : this.trajectoriesMeanSpeeds.values()) {
+        speedStats.addValue(trajectoryMeanSpeed);
       }
       this.meanSpeed = speedStats.getMean();
       speedStats = null;
@@ -162,32 +155,6 @@ public class CellSpeeds {
       }
     }
 
-  }
-
-  //list of speed values for a moving object trajectory inside a cell and timestamp
-  public class TrajectorySpeeds {
-      private DescriptiveStatistics speedStats;
-      private double meanSpeed;
-
-      public TrajectorySpeeds() {
-        this.speedStats = new DescriptiveStatistics();
-      }
-
-      public void addSpeed(double speed) {
-        this.speedStats.addValue(speed);
-      }
-
-      public void calculateMean() {
-        this.meanSpeed = this.speedStats.getMean();
-        this.speedStats = null;
-        if (Double.isNaN(meanSpeed)) {
-          LOG.warning("trajectory with mean speed NaN!");
-        }
-      }
-
-      public double getMean() {
-        return this.meanSpeed;
-      }
   }
 
 }
