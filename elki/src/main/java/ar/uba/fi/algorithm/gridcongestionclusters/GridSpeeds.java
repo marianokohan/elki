@@ -104,7 +104,7 @@ public class GridSpeeds {
   }
 
   private void dumpRow(int row, String trajectoryId) {
-    if (row % 10000 == 0) {
+    if (row % 100000 == 0) {
       LOG.debug(String.format("processing row %d for trajectory %s ...", row, trajectoryId));
     }
   }
@@ -138,7 +138,7 @@ public class GridSpeeds {
     LOG.debug(performanceIndexStats.toString());
     LOG.info(String.format("[%s] Normalizing performance index ...", new Date()));
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
-        double normalizedPerfomanceIndex = cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
+        cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
     }
   }
 

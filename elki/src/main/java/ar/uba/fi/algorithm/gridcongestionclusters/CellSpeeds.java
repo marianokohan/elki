@@ -23,8 +23,6 @@ import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import org.opengis.feature.simple.SimpleFeature;
-
 import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /**
@@ -39,7 +37,6 @@ public class CellSpeeds {
 
   private Map<Integer,TimesliceSpeeds> timeslicesSpeeds;
 
-  private SimpleFeature cell;
   private Integer cellId;
   private DescriptiveStatistics speedStats;
   private double freeFlowSpeed;
@@ -48,28 +45,14 @@ public class CellSpeeds {
 
   private double averageOperationSpeed;
 
-  public CellSpeeds(SimpleFeature cell) {
-    this.cell = cell;
-    this.timeslicesSpeeds = new HashMap<Integer, CellSpeeds.TimesliceSpeeds>();
-    this.speedStats = new DescriptiveStatistics();
-  }
-
   public CellSpeeds(Integer cellId) {
     this.cellId = cellId;
     this.timeslicesSpeeds = new HashMap<Integer, CellSpeeds.TimesliceSpeeds>();
     this.speedStats = new DescriptiveStatistics();
   }
 
-  public String getCellId() {
-    return this.cell.getID();
-  }
-
   public Integer getCellAttributeId() {
-    if (cell != null) {
-      return (Integer)cell.getAttribute("id");
-    } else {
       return this.cellId;
-    }
   }
 
   public TimesliceSpeeds getTimesliceSpeeds(int timeslice) {
@@ -91,6 +74,7 @@ public class CellSpeeds {
 
   public void calculateFreeFlowSpeed() {
     this.freeFlowSpeed = this.speedStats.getPercentile(95);
+    this.speedStats = null;
     if (Double.isNaN(freeFlowSpeed)) {
       LOG.warning("cell with free flow speed NaN!");
     }
@@ -143,7 +127,6 @@ public class CellSpeeds {
   public class TimesliceSpeeds {
 
     private Map<String,TrajectorySpeeds> trajectoriesSpeeds;
-    private DescriptiveStatistics speedStats;
     private double meanSpeed;
 
     public TimesliceSpeeds() {
@@ -168,11 +151,12 @@ public class CellSpeeds {
     }
 
     public void calculateMean() {
-      this.speedStats = new DescriptiveStatistics();
+      DescriptiveStatistics speedStats = new DescriptiveStatistics();
       for(TrajectorySpeeds trajectorySpeed : this.trajectoriesSpeeds.values()) {
-        this.speedStats.addValue(trajectorySpeed.getMean());
+        speedStats.addValue(trajectorySpeed.getMean());
       }
-      this.meanSpeed = this.speedStats.getMean();
+      this.meanSpeed = speedStats.getMean();
+      speedStats = null;
       if (Double.isNaN(meanSpeed)) {
         LOG.warning("timeslice with mean speed NaN");
       }
@@ -195,6 +179,7 @@ public class CellSpeeds {
 
       public void calculateMean() {
         this.meanSpeed = this.speedStats.getMean();
+        this.speedStats = null;
         if (Double.isNaN(meanSpeed)) {
           LOG.warning("trajectory with mean speed NaN!");
         }
