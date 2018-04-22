@@ -118,6 +118,10 @@ public class GridMappingScan implements Algorithm {
     return 0;
   }
 
+  public boolean isMappedCell(Integer cellAttributeId) {
+    return this.cellsPerfomanceIndex.containsKey(cellAttributeId);
+  }
+
   private void dbScan(GridMapping grid, CongestionClusters result) {
     Set<Integer> processedCellsId = new HashSet<Integer>();
     Set<Integer> noiseCellsId = new HashSet<Integer>();
@@ -157,8 +161,8 @@ public class GridMappingScan implements Algorithm {
   }
 
   private boolean shouldProcessCell(Set<Integer> processedCellsId, Set<Integer> noiseCellsId, Integer cellId) {
-    return (!processedCellsId.contains(cellId) || noiseCellsId.contains(cellId));
-    //return (!processedCellsId.contains(cellId) || noiseCellsId.contains(cellId)) && ( cellId >= 47000 && cellId <= 50000 ); //para trabajar viz mas rapido
+    return (this.isMappedCell(cellId)) && (!processedCellsId.contains(cellId) || noiseCellsId.contains(cellId));
+    //return (this.isMappedCell(cellId)) && (!processedCellsId.contains(cellId) || noiseCellsId.contains(cellId)) && ( cellId >= 40000 && cellId <= 43000 ); //para trabajar viz mas rapido
   }
 
   protected double sumPerformanceIndex(SimpleFeatureCollection neighboorhood, Set<Integer> processedCellsId, Set<Integer> noiseCellsId, CongestionCluster currentCluster) {
