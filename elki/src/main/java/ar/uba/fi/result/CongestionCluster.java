@@ -57,6 +57,16 @@ public class CongestionCluster {
     return this.cells.contains(new Cell(cellId));
   }
 
+  public boolean containsCellFeature(SimpleFeature cellFeature) {
+    Integer cellFeatureAttributeId = (Integer)cellFeature.getAttribute("id");
+    for(Cell cell : cells) {
+      if (cell.getId().equals(cellFeatureAttributeId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public double performanceIndexSum() {
     double sum = 0;
     for(Cell cell : cells) {

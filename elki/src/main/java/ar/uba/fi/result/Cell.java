@@ -60,6 +60,10 @@ public class Cell {
     this.attributeId = cellId;
   }
 
+  public Integer getId() {
+    return this.attributeId;
+  }
+
   public void setAsCoreCell() {
     this.coreCell = true;
   }

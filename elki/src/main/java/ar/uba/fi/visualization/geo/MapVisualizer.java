@@ -1,6 +1,11 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -9,7 +14,9 @@ import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geometry.jts.JTSFactoryFinder;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.Layer;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
@@ -24,9 +31,11 @@ import org.geotools.styling.Stroke;
 import org.geotools.styling.Style;
 import org.geotools.styling.StyleBuilder;
 import org.geotools.styling.StyleFactory;
+import org.geotools.swing.JMapFrame;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
+import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory2;
 
 import com.vividsolutions.jts.geom.Coordinate;
@@ -64,6 +73,7 @@ public class MapVisualizer {
 
   protected StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
   protected FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
+  protected JMapFrame mapFrame;
 
   public MapVisualizer() {
     super();
@@ -165,11 +175,11 @@ public class MapVisualizer {
         builder.add("the_geom", Point.class);
         builder.length(15).add("Name", String.class); // 15 chars width for name field
         SimpleFeatureType pointType = builder.buildFeatureType();
-  
+
         SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(pointType);
         simpleFeatureBuilder.add(point);
         SimpleFeature pointFeature = simpleFeatureBuilder.buildFeature(null);
-  
+
         pointsFeatureCollection.add(pointFeature);
     }
     return pointsFeatureCollection;
@@ -182,14 +192,43 @@ public class MapVisualizer {
     builder.add("the_geom", Polygon.class);
     builder.length(15).add("Name", String.class); // 15 chars width for name field
     SimpleFeatureType polygonType = builder.buildFeatureType();
-  
+
     SimpleFeatureBuilder simpleFeatureBuilder = new SimpleFeatureBuilder(polygonType);
     simpleFeatureBuilder.add(polygon);
     SimpleFeature polygonFeature = simpleFeatureBuilder.buildFeature(null);
-  
+
     DefaultFeatureCollection polygonFeatureCollection = new DefaultFeatureCollection();
     polygonFeatureCollection.add(polygonFeature);
     return polygonFeatureCollection;
+  }
+
+  protected SimpleFeatureCollection getSelectedFeatureFromMap(SimpleFeatureSource featureSource) {
+    ReferencedEnvelope bounds = mapFrame.getMapContent().getViewport().getBounds();
+    return filterFeaturesInBox(bounds, featureSource);
+  }
+
+  protected SimpleFeatureCollection filterFeaturesInBox(ReferencedEnvelope box, SimpleFeatureSource featureSource) {
+    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
+    String geometryAttributeName = geomDescriptor.getLocalName();
+    Filter filter = filterFactory.intersects(filterFactory.property(geometryAttributeName), filterFactory.literal(box));
+
+    SimpleFeatureCollection selectedFeatures = null;
+    try {
+        selectedFeatures = featureSource.getFeatures(filter);
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
+    return selectedFeatures;
+  }
+
+  protected void exportToGeoJson(SimpleFeatureCollection features, String fileName) {
+    Path jamRoutesGeoJsonPath = FileSystems.getDefault().getPath(fileName);
+    try (OutputStream geoJsonStream = Files.newOutputStream(jamRoutesGeoJsonPath)) {
+      FeatureJSON geojson = new FeatureJSON();
+      geojson.writeFeatureCollection(features, geoJsonStream);
+    } catch (IOException ioException) {
+        System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
+    }
   }
 
 }

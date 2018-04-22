@@ -29,9 +29,7 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.Rectangle2D;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.FileSystems;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
@@ -44,7 +42,6 @@ import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.filter.identity.FeatureIdImpl;
-import org.geotools.geojson.feature.FeatureJSON;
 import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
@@ -65,7 +62,6 @@ import org.geotools.swing.event.MapMouseEvent;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.GeometryDescriptor;
-import org.opengis.filter.Filter;
 import org.opengis.filter.FilterFactory;
 import org.opengis.filter.FilterFactory2;
 import org.opengis.filter.identity.FeatureId;
@@ -97,8 +93,6 @@ public class RoutesVisualizer extends MapVisualizer {
 
   private static final Color TRAJECTORY_COLOR = new Color(50, 100, 228);
   static final Logging LOG = Logging.getLogger(RoutesVisualizer.class);
-  protected JMapFrame mapFrame;
-
   public RoutesVisualizer() {
     super();
   }
@@ -500,35 +494,6 @@ public class RoutesVisualizer extends MapVisualizer {
             worldRect,
             mapFrame.getMapContent().getCoordinateReferenceSystem());
     return filterFeaturesInBox(bbox, featureSource);
-  }
-
-  protected SimpleFeatureCollection getSelectedFeatureFromMap(SimpleFeatureSource featureSource) {
-    ReferencedEnvelope bounds = mapFrame.getMapContent().getViewport().getBounds();
-    return filterFeaturesInBox(bounds, featureSource);
-  }
-
-  private SimpleFeatureCollection filterFeaturesInBox(ReferencedEnvelope box, SimpleFeatureSource featureSource) {
-    GeometryDescriptor geomDescriptor = featureSource.getSchema().getGeometryDescriptor();
-    String geometryAttributeName = geomDescriptor.getLocalName();
-    Filter filter = filterFactory.intersects(filterFactory.property(geometryAttributeName), filterFactory.literal(box));
-
-    SimpleFeatureCollection selectedFeatures = null;
-    try {
-        selectedFeatures = featureSource.getFeatures(filter);
-    } catch (Exception ex) {
-        ex.printStackTrace();
-    }
-    return selectedFeatures;
-  }
-
-  protected void exportToGeoJson(SimpleFeatureCollection features, String fileName) {
-    Path jamRoutesGeoJsonPath = FileSystems.getDefault().getPath(fileName);
-    try (OutputStream geoJsonStream = Files.newOutputStream(jamRoutesGeoJsonPath)) {
-      FeatureJSON geojson = new FeatureJSON();
-      geojson.writeFeatureCollection(features, geoJsonStream);
-    } catch (IOException ioException) {
-        System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
-    }
   }
 
   protected void deleteExportedFile(String fileName) {

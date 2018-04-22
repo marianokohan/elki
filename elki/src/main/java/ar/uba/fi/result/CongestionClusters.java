@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.opengis.feature.simple.SimpleFeature;
+
 import ar.uba.fi.roadnetwork.RoadNetwork;
 import de.lmu.ifi.dbs.elki.result.Result;
 /*
@@ -63,6 +67,24 @@ public class CongestionClusters implements Result {
 
   public void addCluster(CongestionCluster cluster) {
     this.clusters.add(cluster);
+  }
+
+  public List<CongestionCluster> filterClusterWithCellFeatures(SimpleFeatureCollection cellFeatures) {
+    List<CongestionCluster> clustersWithCellFeatures = new LinkedList<CongestionCluster>();
+    if (!cellFeatures.isEmpty()) {
+      for(CongestionCluster congestionCluster : clusters) {
+        try (SimpleFeatureIterator iter = cellFeatures.features()) {
+          while (iter.hasNext()) {
+            SimpleFeature cellFeature = iter.next();
+            if (congestionCluster.containsCellFeature(cellFeature)) {
+              clustersWithCellFeatures.add(congestionCluster);
+              break; //TODO: improve to avoid iterate congestionCluster
+            }
+          }
+        }
+      }
+    }
+    return clustersWithCellFeatures;
   }
 
 }

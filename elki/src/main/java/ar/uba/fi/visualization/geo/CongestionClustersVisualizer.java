@@ -1,7 +1,12 @@
 package ar.uba.fi.visualization.geo;
 
 import java.awt.Color;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.List;
+
+import javax.swing.JButton;
+import javax.swing.JToolBar;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
@@ -13,6 +18,8 @@ import org.geotools.styling.PolygonSymbolizer;
 import org.geotools.styling.Rule;
 import org.geotools.styling.Stroke;
 import org.geotools.swing.JMapFrame;
+import org.geotools.swing.event.MapMouseEvent;
+import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.GeometryDescriptor;
 
@@ -71,18 +78,34 @@ public class CongestionClustersVisualizer extends GridVisualizer implements Resu
     this.displayCongestionClusters(congestionClusters.getRoadNetwork(), congestionClusters);
   }
 
-  public void displayCongestionClusters(RoadNetwork gridMappedRoadNetwork, CongestionClusters congestionClusters) {
-    DefaultFeatureCollection cellsFeatureCollection = new DefaultFeatureCollection();
-    for(CongestionCluster cluster : congestionClusters.getClusters()) {
-      List<SimpleFeature> clusterCellFeatures = cluster.getCellFeatures();
-      cellsFeatureCollection.addAll(clusterCellFeatures);
-    }
-    this.displayCongestionClustersCells(gridMappedRoadNetwork, cellsFeatureCollection);
+  public void displayCongestionClusters(final RoadNetwork gridMappedRoadNetwork, final CongestionClusters congestionClusters) {
+    MapContent map = createMapContent(gridMappedRoadNetwork, congestionClusters);
+
+    mapFrame = new JMapFrame(map);
+    mapFrame.enableToolBar(true);
+    mapFrame.enableStatusBar(true);
+
+    JToolBar toolBar = mapFrame.getToolBar();
+    JButton btn = new JButton("Map area");
+    toolBar.addSeparator();
+    toolBar.add(btn);
+    btn.addActionListener(new ActionListener() {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+            mapFeatures(gridMappedRoadNetwork.getGridMapping().getGrid(), congestionClusters);
+        }
+    });
+
+    mapFrame.setSize(1400, 900);
+    mapFrame.setVisible(true);
   }
 
-  protected void displayCongestionClustersCells(RoadNetwork gridMappedRoadNetwork, SimpleFeatureCollection cells) {
+  private MapContent createMapContent(RoadNetwork gridMappedRoadNetwork, CongestionClusters congestionClusters) {
     SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
     SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
+
+    List<CongestionCluster> congestionClustersList = congestionClusters.getClusters();
+    SimpleFeatureCollection cells = createCellFeatureCollection(congestionClustersList);
 
     MapContent map = new MapContent();
     map.setTitle("Grid congestion clusters");
@@ -90,8 +113,16 @@ public class CongestionClustersVisualizer extends GridVisualizer implements Resu
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
     map.addLayer(createGridCellsClusterLayer(cells, grid, CELL_LINE_COLOR, CELL_LINE_WIDTH));
+    return map;
+  }
 
-    JMapFrame.showMap(map);
+  private SimpleFeatureCollection createCellFeatureCollection(List<CongestionCluster> congestionClusters) {
+    DefaultFeatureCollection cellsFeatureCollection = new DefaultFeatureCollection();
+    for(CongestionCluster cluster : congestionClusters) {
+      List<SimpleFeature> clusterCellFeatures = cluster.getCellFeatures();
+      cellsFeatureCollection.addAll(clusterCellFeatures);
+    }
+    return cellsFeatureCollection;
   }
 
   protected FeatureLayer createGridCellsClusterLayer(SimpleFeatureCollection cells, SimpleFeatureSource grid, Color strokeColor, double strokeWitdh) {
@@ -111,6 +142,21 @@ public class CongestionClustersVisualizer extends GridVisualizer implements Resu
     Rule lineRule = styleFactory.createRule();
     lineRule.symbolizers().add(polygonSymbolizer);
     return lineRule;
+  }
+
+  void mapFeatures(SimpleFeatureSource gridFeatureSource, CongestionClusters congestionClusters) {
+    SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(gridFeatureSource);
+    List<CongestionCluster> selectedCongestionClusters = congestionClusters.filterClusterWithCellFeatures(selectedFeatures);
+    SimpleFeatureCollection selectedCellsCongestionClusters = this.createCellFeatureCollection(selectedCongestionClusters);
+    this.exportCongestionClustersCellFeaturesToGeoJson(selectedCellsCongestionClusters);
+    //TODO: prueba => PApplet
+    /*
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
+    */
+  }
+
+  private void exportCongestionClustersCellFeaturesToGeoJson(SimpleFeatureCollection cellsFeatureCollection) {
+    exportToGeoJson(cellsFeatureCollection, "congestion_clusters_cells.json");
   }
 
 }
