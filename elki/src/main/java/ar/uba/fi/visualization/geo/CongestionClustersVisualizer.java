@@ -23,6 +23,7 @@ import org.geotools.swing.tool.CursorTool;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.GeometryDescriptor;
 
+import processing.core.PApplet;
 import ar.uba.fi.result.CongestionCluster;
 import ar.uba.fi.result.CongestionClusters;
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -149,10 +150,7 @@ public class CongestionClustersVisualizer extends GridVisualizer implements Resu
     List<CongestionCluster> selectedCongestionClusters = congestionClusters.filterClusterWithCellFeatures(selectedFeatures);
     SimpleFeatureCollection selectedCellsCongestionClusters = this.createCellFeatureCollection(selectedCongestionClusters);
     this.exportCongestionClustersCellFeaturesToGeoJson(selectedCellsCongestionClusters);
-    //TODO: prueba => PApplet
-    /*
-      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
-    */
+    PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.CongestionClustersMapVisualizer"});
   }
 
   private void exportCongestionClustersCellFeaturesToGeoJson(SimpleFeatureCollection cellsFeatureCollection) {
