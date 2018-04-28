@@ -60,7 +60,7 @@ public class GridMappingPreprocessor extends Preprocessor {
 
   @Override
   protected void preprocessFile(File trajectories) {
-    LOG.debug("preprocessing speed for file: " + trajectories);
+    LOG.debug("gridmapping preprocessing for file: " + trajectories);
     try {
       // Input format from SpeedPreprocessor
       // trajectory id (from sampling rate preprocessor); timestamp (in milliseconds); longitude; latitude; speed (in km/h)
@@ -124,7 +124,7 @@ public class GridMappingPreprocessor extends Preprocessor {
   }
 
   private void dumpRow(int row, String trajectoryId) {
-    if (row % 10000 == 0) {
+    if (row % 100000 == 0) {
       LOG.debug(String.format("preprocessing row %d for trajectory %s ...", row, trajectoryId));
     }
   }
