@@ -107,13 +107,19 @@ public class CellSpeeds {
 
   /*
    * build dump to be used by adapted DBSCAN
-   * (-> id attribute, minX, maxX, miny, maxY, (normalized) performanceIndex[, original performance index])
    * --> id attribute, (normalized) performanceIndex
+   *  - xtra: original performance index, averageOperationSpeed, freeFlowSpeed
    */
   public String toDumpString() {
     StringBuffer cellDump = new StringBuffer();
     cellDump.append(getCellAttributeId()).append(";");
     cellDump.append(normalizedPerformanceIndex).append(";");
+    /*
+     * xtra fields
+    cellDump.append(performaceIndex).append(";");
+    cellDump.append(averageOperationSpeed).append(";");
+    cellDump.append(freeFlowSpeed).append(";");
+     */
     return cellDump.toString();
   }
 

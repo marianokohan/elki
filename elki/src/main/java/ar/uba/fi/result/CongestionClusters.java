@@ -40,8 +40,6 @@ public class CongestionClusters implements Result {
   protected RoadNetwork roadNetwork;
   protected List<CongestionCluster> clusters;
 
-  public Map<String, Double> cellsPerformanceIndex;
-
   public CongestionClusters(RoadNetwork gridMappedRoadNetwork) {
     this.roadNetwork = gridMappedRoadNetwork;
     this.clusters = new LinkedList<CongestionCluster>();

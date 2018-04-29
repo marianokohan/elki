@@ -150,7 +150,7 @@ public class GridSpeeds {
     this.cellTimeSpeeds.get(cellId).calculateFreeFlowSpeed(cellSpeedStats);
   }
 
-  public void calculateCellsPerformanceIndex() {
+  public Map<Integer, Double> calculateCellsPerformanceIndex() {
     LOG.info(String.format("[%s] Calculating Timeslices Mean Speed ...", new Date()));
     calculateTimeslicesMeanSpeed();
     LOG.info(String.format("[%s] Calculating Cells Average Operation Speed ...", new Date()));
@@ -165,9 +165,12 @@ public class GridSpeeds {
     LOG.debug("performance index stats: ");
     LOG.debug(performanceIndexStats.toString());
     LOG.info(String.format("[%s] Normalizing performance index ...", new Date()));
+    Map<Integer, Double> cellsPerformanceIndex = new HashMap<Integer, Double>();
     for(CellSpeeds cellSpeeds : this.cellTimeSpeeds.values()) {
         cellSpeeds.normalizePerformanceIndex(performanceIndexStats.getMin(), performanceIndexStats.getMax());
+        cellsPerformanceIndex.put(cellSpeeds.getCellAttributeId(), cellSpeeds.getPerformanceIndex());
     }
+    return cellsPerformanceIndex;
   }
 
   private void calculateCellsAverageOperationSpeed() {

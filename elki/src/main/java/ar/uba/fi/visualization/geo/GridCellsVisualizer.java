@@ -27,6 +27,8 @@ import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.GeometryDescriptor;
 
 import ar.uba.fi.result.CongestionClusters;
+import ar.uba.fi.result.GridCells;
+import ar.uba.fi.result.GridCells.CellCategory;
 import ar.uba.fi.roadnetwork.GridMapping;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 /*
@@ -66,7 +68,7 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
     // TODO improve -> base for cast and child for specific cases ?(to review)
-    CongestionClusters congestionClusters = null;
+    GridCells gridCells = null;
     StaticArrayDatabase database = null;
     for (Hierarchy.Iter<Result> iter = ((BasicResult)newResult).getHierarchy().iterChildren(newResult); iter.valid(); iter.advance()) {
       Result result = iter.get();
@@ -74,13 +76,13 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
         database = (StaticArrayDatabase) result;
       }
 
-      if (result instanceof CongestionClusters) {
-        congestionClusters = (CongestionClusters) result;
+      if (result instanceof GridCells) {
+        gridCells = (GridCells) result;
       }
     }
     //this.displayCells(congestionClusters.getRoadNetwork(), congestionClusters.mappedCells);
     //this.displayCellsId(congestionClusters.getRoadNetwork(), congestionClusters.cellsPerformanceIndex.keySet());
-    this.displayCellsPerformanceIndex(congestionClusters.getRoadNetwork(), congestionClusters.cellsPerformanceIndex);
+    this.displayCellsPerformanceIndex(gridCells.getRoadNetwork(), gridCells.getCellsCategorized());
   }
 
   public void displayCellsList(RoadNetwork gridMappedRoadNetwork, List<SimpleFeature> cells) {
@@ -149,69 +151,9 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     JMapFrame.showMap(map);
   }
 
-  protected class CellCategory {
-    double min;
-    double max;
-    Color fill;
-    Set<String> cells;
-    SimpleFeatureCollection features;
 
-    public CellCategory(double min, double max, Color fill) {
-      this.min = min;
-      this.max = max;
-      this.fill = fill;
-      this.cells = new HashSet<String>();
-    }
 
-    public boolean contains(double index) {
-      return (index >= this.min) && (index < this.max);
-    }
-
-    public void add(String cellId) {
-      this.cells.add(cellId);
-    }
-
-  }
-
-  protected List<CellCategory>  categorizeCells(Map<String, Double> cellsPerformanceIndex) {
-    List<CellCategory> cellCategories = new LinkedList<GridCellsVisualizer.CellCategory>();
-    cellCategories.add(new CellCategory(0, 10, new Color(240, 200, 200)));
-    cellCategories.add(new CellCategory(10, 20, new Color(240, 180, 180)));
-    cellCategories.add(new CellCategory(20, 30, new Color(240, 160, 160)));
-    cellCategories.add(new CellCategory(30, 40, new Color(240, 140, 140)));
-    cellCategories.add(new CellCategory(40, 50, new Color(240, 120, 120)));
-    cellCategories.add(new CellCategory(50, 60, new Color(240, 100, 100)));
-    cellCategories.add(new CellCategory(60, 70, new Color(240, 80, 80)));
-    cellCategories.add(new CellCategory(70, 80, new Color(240, 60, 60)));
-    cellCategories.add(new CellCategory(80, 90, new Color(240, 40, 40)));
-    cellCategories.add(new CellCategory(90, 101, new Color(240, 20, 20)));
-
-    int nanIndexes = 0;
-    for(Entry<String, Double> cellPerformanceIndex : cellsPerformanceIndex.entrySet()) {
-      //System.out.println("cell: " + cellPerformanceIndex.getKey() + " - performance index: " + cellPerformanceIndex.getValue());
-      for(CellCategory cellCategory : cellCategories) {
-        if (cellPerformanceIndex.getValue().isNaN()) {
-          nanIndexes++;
-        } else {
-          if (cellCategory.contains(cellPerformanceIndex.getValue())) {
-            cellCategory.add(cellPerformanceIndex.getKey());
-          }
-        }
-      }
-    }
-    nanIndexes = nanIndexes / 10; //counter for each category
-    int totalCells = cellsPerformanceIndex.size();
-    double nanIndexesPercentage = ((double)nanIndexes/(double)totalCells)*100;
-    System.out.println("cells performance indexes:  total "+ totalCells +" - NaN: " + nanIndexes + " ("+ nanIndexesPercentage + "%)" );
-
-    return cellCategories;
-  }
-
-  public void displayCellsPerformanceIndex(RoadNetwork gridMappedRoadNetwork, Map<String, Double> cellsPerformanceIndex) {
-    List<CellCategory> cellCategories = categorizeCells(cellsPerformanceIndex);
-    for(CellCategory cellCategory : cellCategories) {
-      cellCategory.features = gridMappedRoadNetwork.getGridMapping().getCellFeatures(cellCategory.cells);
-    }
+  public void displayCellsPerformanceIndex(RoadNetwork gridMappedRoadNetwork, List<CellCategory> cellCategories) {
 
     SimpleFeatureSource featureSource = gridMappedRoadNetwork.getRoadsFeatureSource();
     SimpleFeatureSource grid = gridMappedRoadNetwork.getGridMapping().getGrid();
@@ -222,7 +164,7 @@ public class GridCellsVisualizer extends GridVisualizer implements ResultHandler
     map.addLayer(createRoadNetworkLayer(featureSource));
     map.addLayer(createGridLayer(grid, GRID_LINE_COLOR, GRID_LINE_WIDTH));
     for(CellCategory cellCategory : cellCategories) {
-      map.addLayer(createGridCellsLayer(cellCategory.features, grid, cellCategory.fill, CELL_LINE_WIDTH));
+      map.addLayer(createGridCellsLayer(cellCategory.getCellFeatures(), grid, cellCategory.getFill(), CELL_LINE_WIDTH));
     }
 
     JMapFrame.showMap(map);

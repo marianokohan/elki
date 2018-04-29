@@ -2,7 +2,9 @@ package ar.uba.fi.algorithm.gridcongestionclusters;
 
 import java.io.File;
 import java.util.Date;
+import java.util.Map;
 
+import ar.uba.fi.result.GridCells;
 import ar.uba.fi.roadnetwork.RoadNetwork;
 import de.lmu.ifi.dbs.elki.algorithm.Algorithm;
 /*
@@ -66,24 +68,12 @@ public class GridMappingCalculator implements Algorithm {
     LOG.info(String.format("[%s] Mapping speeds into grid ...", new Date()));
     this.gridSpeeds = new GridSpeeds(database, this.roadNetwork.getGridMapping());
     LOG.info(String.format("[%s] Calculating cells performance index ...", new Date()));
-    this.gridSpeeds.calculateCellsPerformanceIndex();
+    Map<Integer, Double> cellsPerformanceIndex = this.gridSpeeds.calculateCellsPerformanceIndex();
     LOG.info(String.format("[%s] Dumping cells performance index  ...", new Date()));
     //id attribute, (normalized) performanceIndex
     this.gridSpeeds.dumpCells();
 
-    //TODO: improve using directly the dump (or convert into some kind of processor)
-    return new Result() {
-
-      @Override
-      public String getShortName() {
-        return "grid index dump";
-      }
-
-      @Override
-      public String getLongName() {
-        return "grid index dump";
-      }
-    };
+    return new GridCells(roadNetwork, cellsPerformanceIndex);
   }
 
 
