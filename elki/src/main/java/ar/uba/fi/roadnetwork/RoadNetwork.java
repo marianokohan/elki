@@ -245,7 +245,7 @@ public class RoadNetwork {
     return gridMapping;
   }
 
-  public double calculateDistance(Coordinate startPoint, Coordinate endPoint) throws TransformException {
+  public double calculateDistance(Coordinate startPoint, Coordinate endPoint) throws TransformException, IllegalArgumentException {
     geodeticCalculator.setStartingPosition(JTS.toDirectPosition(startPoint, crs));
     geodeticCalculator.setDestinationPosition(JTS.toDirectPosition(endPoint, crs));
     return geodeticCalculator.getOrthodromicDistance();

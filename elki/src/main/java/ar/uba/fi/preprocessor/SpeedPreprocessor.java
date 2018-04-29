@@ -168,14 +168,14 @@ public class SpeedPreprocessor extends Preprocessor {
   }
 
   private boolean validSpeed(double speed) {
-    return (speed <= this.maxSpeedThreshold);
+    return  (speed >= 0) && (speed <= this.maxSpeedThreshold);
   }
 
   private double calculateSpeed(Coordinate position, long timestamp, Coordinate previousPosition, long previousTimestamp) {
     if (previousTimestamp < 0) { //no previous position => speed = 0
       return 0;
     }
-    double velocity = 0;
+    double velocity = -1;
     double distante;
     long time;
     try {
@@ -184,6 +184,9 @@ public class SpeedPreprocessor extends Preprocessor {
       velocity = (distante * 1000 * 60 * 60 ) / (time * 1000);
     }
     catch(TransformException e) {
+      LOG.warning("could not calculate distance for positions: " + position + ", " + previousPosition);
+    }
+    catch(IllegalArgumentException e) {
       LOG.warning("could not calculate distance for positions: " + position + ", " + previousPosition);
     }
     return velocity;
