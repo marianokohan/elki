@@ -6,8 +6,11 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -142,7 +145,7 @@ public class GridMappingScan implements Algorithm {
             CongestionCluster currentCluster = new CongestionCluster(coreCell);
             noiseCellsId.remove(noiseCellsId); //required to add 'border' cells
             LOG.debug(String.format("expanding cluster on cell: %d", cellId));
-            expandCluster(currentCluster, neighboorhood, grid, processedCellsId, noiseCellsId);
+            expandCluster(currentCluster, coreCell, neighboorhood, grid, processedCellsId, noiseCellsId);
             clustersDump.append(String.format("%d;%d;%f", cellId, currentCluster.size(), currentCluster.performanceIndexSum())).append("\n");
             result.addCluster(currentCluster);
           } else {
@@ -193,10 +196,19 @@ public class GridMappingScan implements Algorithm {
     LOG.info(String.format("[%s] Total number of clusters: %d", new Date(), clustersDiscovered.size()));
   }
 
-  private void expandCluster(CongestionCluster currentCluster, SimpleFeatureCollection neighboorhood, GridMapping grid, Set<Integer> processedCellsId, Set<Integer> noiseCellsId) {
+  private void expandCluster(CongestionCluster currentCluster, Cell coreCell, SimpleFeatureCollection neighboorhood, GridMapping grid, Set<Integer> processedCellsId, Set<Integer> noiseCellsId) {
+    Queue<Cell> seedCells = new LinkedList<Cell>();
     for(SimpleFeatureIterator neighboorhoodIterator = neighboorhood.features(); neighboorhoodIterator.hasNext();) {
       SimpleFeature neighboordCellFeature = neighboorhoodIterator.next();
       Integer neighboordCellId = (Integer)neighboordCellFeature.getAttribute("id");
+      Cell seedCell = new Cell(neighboordCellId, neighboordCellFeature);
+      seedCells.add(seedCell);
+    }
+
+    while (!seedCells.isEmpty()) {
+      Cell seedCell = seedCells.remove();
+      SimpleFeature neighboordCellFeature = seedCell.getFeature();
+      Integer neighboordCellId = seedCell.getId();
       if (shouldProcessCell(processedCellsId, noiseCellsId, neighboordCellId)) {
         SimpleFeatureCollection neighboorhoodL2 = grid.getRangeForCell(neighboordCellFeature, eps);
         double neighboordCellSCI = this.sumPerformanceIndex(neighboorhoodL2, processedCellsId, noiseCellsId, currentCluster);
@@ -207,10 +219,16 @@ public class GridMappingScan implements Algorithm {
         noiseCellsId.remove(neighboordCellId); //required to add 'border' cells
         if (neighboordCellSCI >= minPts) {
           neighboordCell.setAsCoreCell();
-          expandCluster(currentCluster, neighboorhoodL2, grid, processedCellsId, noiseCellsId);
+          for(SimpleFeatureIterator neighboorhoodL2Iterator = neighboorhoodL2.features(); neighboorhoodL2Iterator.hasNext();) {
+            SimpleFeature neighboordCellFeatureL2 = neighboorhoodL2Iterator.next();
+            Integer neighboordCellIdL2 = (Integer)neighboordCellFeatureL2.getAttribute("id");
+            Cell seedCellL2 = new Cell(neighboordCellIdL2, neighboordCellFeatureL2);
+            seedCells.add(seedCellL2);
+          }
         }
       }
     }
+    LOG.debug(String.format("expand cluster -> cell: %d (cluster size: %d)", coreCell.getId(), currentCluster.size()));
   }
 
   /**

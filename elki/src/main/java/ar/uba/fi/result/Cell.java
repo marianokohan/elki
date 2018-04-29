@@ -39,6 +39,11 @@ public class Cell {
     this.coreCell = false;
   }
 
+  public Cell(Integer attributeId, SimpleFeature feature) {
+    this.attributeId = attributeId;
+    this.feature = feature;
+  }
+
   public Cell(Integer attributeId, SimpleFeature feature, Double sci, Double performanceIndex) {
     this.attributeId = attributeId;
     this.feature = feature;
