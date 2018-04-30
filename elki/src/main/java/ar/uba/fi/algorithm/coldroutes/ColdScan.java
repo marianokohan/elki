@@ -201,7 +201,7 @@ public class ColdScan implements Algorithm {
   }
 
   private boolean appliesThresholdCondition(SimpleFeature edge) {
-    Set<Integer> traffic = trafficSets.traffic(edge.getID());
+    Set<String> traffic = trafficSets.traffic(edge.getID());
     return traffic.size() <= this.maxTraffic;
   }
 

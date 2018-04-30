@@ -96,7 +96,7 @@ public class FlowScan  implements Algorithm {
 //    return TypeUtil.array(TypeUtil.NUMBER_VECTOR_FIELD_2D);
   }
 
-  
+
   //TODO: considerar declaracion de signature devolviendo Result del tipo HotRoutes (en vez de base Result)
   @Override
   public Result run(Database database) {
@@ -132,13 +132,13 @@ public class FlowScan  implements Algorithm {
       for(Iterator iterator = incidentEdges.iterator(); iterator.hasNext();) {
         DirectedEdge incidentEdge = (DirectedEdge) iterator.next();
         String edgeId = ((SimpleFeature)incidentEdge.getObject()).getID();
-        Set<Integer> traffic = trafficSets.traffic(edgeId);
+        Set<String> traffic = trafficSets.traffic(edgeId);
         if (traffic.size() >= minTraffic) {
           incidentEdgesWithMinTraffic.add(edgeId);
         }
       }
-      Set<Integer> currentEdgeTraffic = trafficSets.traffic(currentEdgeFeature.getID());
-      Set<Integer> incidentEdgesTraffic = trafficSets.trafficUnion(incidentEdgesWithMinTraffic.toArray(new String[]{}));
+      Set<String> currentEdgeTraffic = trafficSets.traffic(currentEdgeFeature.getID());
+      Set<String> incidentEdgesTraffic = trafficSets.trafficUnion(incidentEdgesWithMinTraffic.toArray(new String[]{}));
       if (trafficSets.trafficDifference(currentEdgeTraffic, incidentEdgesTraffic).size() >= minTraffic) {
         hotRoutesStarts.add(edge);
       }
