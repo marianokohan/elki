@@ -7,9 +7,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import ar.uba.fi.algorithm.jamroutes.JamFlowScan;
 import ar.uba.fi.converter.BrinkhoffPositionToEdgeConverter;
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
-import de.lmu.ifi.dbs.elki.data.LabelList;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
 import de.lmu.ifi.dbs.elki.database.Database;
 //TODO: confirm license description
@@ -50,28 +50,25 @@ public class TrafficSets {
   private static final Logging LOG = Logging.getLogger(TrafficSets.class);
   private static final String EDGES_TRAFFIC_SETS_DUMP = "edges__traffic_sets.csv";
   //internal parameterization
-  protected static final boolean DUMP_TRAFFIC_SETS = false;
+  protected static final boolean DUMP_TRAFFIC_SETS = true;
 
-  private Map<Integer, Set<String>> edgeTransactionsMap;
+  private Map<Integer, Set<Integer>> edgeTransactionsMap;
 
 
   public TrafficSets(Database database) {
-    edgeTransactionsMap = new HashMap<Integer, Set<String>>();
-    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); edgeId; longitude; latitude; speed (in km/h)
-    Relation<LabelList> trIdRelation = database.getRelation(TypeUtil.LABELLIST, null); //list with trajectory Id
-    DBIDIter trIdIter = trIdRelation.iterDBIDs();
+    edgeTransactionsMap = new HashMap<Integer, Set<Integer>>();
+    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null);
     Integer edgeId = null;
-    Set<String> trafficSet = null;
-    for(DBIDIter trIter = trRelation.iterDBIDs(); trIter.valid(); trIter.advance()) {
-      DoubleVector transationVector = trRelation.get(trIter);
-      edgeId = transationVector.intValue(1);
+    Set<Integer> trafficSet = null;
+    for(DBIDIter iditer = trRelation.iterDBIDs(); iditer.valid(); iditer.advance()) {
+      DoubleVector transationVector = trRelation.get(iditer);
+      edgeId = transationVector.intValue(2);
       trafficSet = edgeTransactionsMap.get(edgeId);
       if (trafficSet == null) {
-        trafficSet = new HashSet<String>();
+        trafficSet = new HashSet<Integer>();
         edgeTransactionsMap.put(edgeId, trafficSet);
       }
-      trafficSet.add(trIdRelation.get(trIdIter).get(0));
-      trIdIter.advance();
+      trafficSet.add(transationVector.intValue(0));
     }
     dumpTrafficSets();
   }
@@ -85,9 +82,9 @@ public class TrafficSets {
       try {
         trafficSetsDump = new FileWriter(EDGES_TRAFFIC_SETS_DUMP);
         StringBuffer edgeTrafficSets;
-        for(Map.Entry<Integer, Set<String>> edgeTransactions : this.edgeTransactionsMap.entrySet()) {
+        for(Map.Entry<Integer, Set<Integer>> edgeTransactions : this.edgeTransactionsMap.entrySet()) {
           edgeTrafficSets = new StringBuffer().append(edgeTransactions.getKey()).append(";");
-          Set<String> traffic = edgeTransactions.getValue();
+          Set<Integer> traffic = edgeTransactions.getValue();
           edgeTrafficSets.append(traffic).append(";");
           edgeTrafficSets.append(traffic.size()).append("\n");
           trafficSetsDump.write(edgeTrafficSets.toString());
@@ -106,11 +103,11 @@ public class TrafficSets {
    * @param edgeId
    * @return
    */
-  public Set<String> traffic(String edgeId) {
+  public Set<Integer> traffic(String edgeId) {
     int parsedEdgeId = Integer.parseInt(BrinkhoffPositionToEdgeConverter.filterPrefixFromEdgeFeatureId(edgeId));
-    Set<String> trafficSet = edgeTransactionsMap.get(parsedEdgeId);
+    Set<Integer> trafficSet = edgeTransactionsMap.get(parsedEdgeId);
     if (trafficSet == null) {
-      trafficSet = new HashSet<String>();
+      trafficSet = new HashSet<Integer>();
     }
     return trafficSet;
   }
@@ -120,15 +117,15 @@ public class TrafficSets {
    * @param edgeIds
    * @return
    */
-  public Set<String> trafficUnion(String...edgeIds ) {
+  public Set<Integer> trafficUnion(String...edgeIds ) {
     if (edgeIds.length == 0) {
-      return new HashSet<String>();
+      return new HashSet<Integer>();
     }
-    Set<String> trafficSet, trafficSetUnion = null;
+    Set<Integer> trafficSet, trafficSetUnion = null;
     for(String edgeId : edgeIds) {
       trafficSet = traffic(edgeId);
       if (trafficSetUnion == null) {
-        trafficSetUnion = new HashSet<String>(trafficSet);
+        trafficSetUnion = new HashSet<Integer>(trafficSet);
       } else {
         trafficSetUnion.addAll(trafficSet);
       }
@@ -141,15 +138,15 @@ public class TrafficSets {
    * @param edgeIds
    * @return
    */
-  public Set<String> trafficInteresection(String...edgeIds ) {
+  public Set<Integer> trafficInteresection(String...edgeIds ) {
     if (edgeIds.length == 0) {
-      return new HashSet<String>();
+      return new HashSet<Integer>();
     }
-    Set<String> trafficSet, trafficSetIntersection = null;
+    Set<Integer> trafficSet, trafficSetIntersection = null;
     for(String edgeId : edgeIds) {
       trafficSet = traffic(edgeId);
       if (trafficSetIntersection == null) {
-        trafficSetIntersection = new HashSet<String>(trafficSet);
+        trafficSetIntersection = new HashSet<Integer>(trafficSet);
       } else {
         trafficSetIntersection.retainAll(trafficSet);
       }
@@ -163,13 +160,13 @@ public class TrafficSets {
    * @param trafficSetB
    * @return
    */
-  public Set<String> trafficDifference(Set<String> trafficSetA, Set<String> trafficSetB) {
-    Set<String> trafficSetDifference = null;
+  public Set<Integer> trafficDifference(Set<Integer> trafficSetA, Set<Integer> trafficSetB) {
+    Set<Integer> trafficSetDifference = null;
     if ( (trafficSetA != null) && (trafficSetB != null) ) {
-      trafficSetDifference = new HashSet<String>(trafficSetA);
+      trafficSetDifference = new HashSet<Integer>(trafficSetA);
       trafficSetDifference.removeAll(trafficSetB);
     } else {
-      trafficSetDifference = new HashSet<String>();
+      trafficSetDifference = new HashSet<Integer>();
     }
     return trafficSetDifference;
   }

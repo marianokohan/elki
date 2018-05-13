@@ -4,6 +4,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import ar.uba.fi.converter.BrinkhoffPositionToEdgeConverter;
 import de.lmu.ifi.dbs.elki.data.DoubleVector;
@@ -48,20 +49,20 @@ public class Speeds {
   private static final String SPEEDS_DUMP = "edges__speeds.csv";
   //internal parameterization
   protected static final boolean LOG_SPEED_STATS = true;
-  protected static final boolean DUMP_SPEEDS = false;
+  protected static final boolean DUMP_SPEEDS = true;
 
   private Map<Integer, Speed> edgeSpeedMap;
 
   public Speeds(Database database) {
     edgeSpeedMap = new HashMap<Integer, Speed>();
-    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null); //timestamp (in milliseconds); edgeId; longitude; latitude; speed (in km/h)
+    Relation<DoubleVector> trRelation = database.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD , null);
     Integer edgeId = null;
     Float transactionSpeed = null;
     Speed speed = null;
     for(DBIDIter iditer = trRelation.iterDBIDs(); iditer.valid(); iditer.advance()) {
       DoubleVector transationVector = trRelation.get(iditer);
-      edgeId = transationVector.intValue(1);
-      transactionSpeed = transationVector.floatValue(4);
+      edgeId = transationVector.intValue(2);
+      transactionSpeed = transationVector.floatValue(5);
       speed = edgeSpeedMap.get(edgeId);
       if (speed == null) {
         speed = new Speed(transactionSpeed);
