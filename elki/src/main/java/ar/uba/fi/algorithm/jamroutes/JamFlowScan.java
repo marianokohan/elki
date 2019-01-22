@@ -74,12 +74,14 @@ public class JamFlowScan extends FlowScan {
     JamRoutes jamRoutes = new JamRoutes(roadNetwork);
     if (!this.onlyTrajectories) {
       List<DirectedEdge> hotRoutesStarts = discoverHotRouteStarts();
+      LOG.info("discovered " + hotRoutesStarts.size()  + " start edges");
       for(DirectedEdge hotRouteStart : hotRoutesStarts) {
         String edgeId = ((SimpleFeature)hotRouteStart.getObject()).getID();
         JamRoute jamRoute = new JamRoute(hotRouteStart, verifiesJamSpeed(edgeId));
         extendJamRoute(jamRoute, jamRoutes);
       }
       LOG.info("JamFlowScan discovers " + jamRoutes.getJamRoutes().size() + " jam routes");
+      jamRoutes.logDenseRoutesSizeByLength(LOG);
     } else {
       LOG.info("Only display trajectories (jam routes not discovered)");
     }

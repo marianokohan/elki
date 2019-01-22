@@ -30,63 +30,62 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
  */
 
 /**
+ * Representation of the discovered set of dense routes
+ *
  * @author Mariano Kohan
  *
  */
-public class ColdRoutes extends Routes {
+public class DenseRoutes extends Routes {
 
-  private List<ColdRoute> coldRoutes;
+  private List<DenseRoute> denseRoutes;
 
-  public ColdRoutes(RoadNetwork roadNetwork) {
+  public DenseRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
-    this.coldRoutes = new LinkedList<ColdRoute>();
+    this.denseRoutes = new LinkedList<DenseRoute>();
   }
 
-  public List<ColdRoute> getColdRoutes() {
-    return this.coldRoutes;
+  public List<DenseRoute> getDenseRoutes() {
+    return this.denseRoutes;
   }
 
-  public void addColdRoute(ColdRoute coldRoute) {
-    this.coldRoutes.add(coldRoute);
-  }
-
-  public void addColdRoutes(Collection<ColdRoute> coldRoutes) {
-    this.coldRoutes.addAll(coldRoutes);
+  public void addDenseRoutes(Collection<DenseRoute> denseRoutes) {
+    this.denseRoutes.addAll(denseRoutes);
   }
 
   @Override
   public String getLongName() {
-    return "Cold routes on road network";
+    return "Dense routes on road network";
   }
 
   @Override
   public String getShortName() {
-    return "Cold routes";
+    return "Dense routes";
   }
 
-  public List<ColdRoute> filterColdRouteWithEdges(SimpleFeatureCollection edges) {
-    List<ColdRoute> coldRoutesWithEdges = new LinkedList<ColdRoute>();
+  public List<DenseRoute> filterDenseRouteWithEdges(SimpleFeatureCollection edges) {
+    List<DenseRoute> denseRoutesWithEdges = new LinkedList<DenseRoute>();
     if (!edges.isEmpty()) {
-      for(ColdRoute coldRoute : this.coldRoutes) {
+      DENSE_ROUTES_LOOP:
+      for(DenseRoute denseRoute : this.denseRoutes) {
         try (SimpleFeatureIterator iter = edges.features()) {
           while (iter.hasNext()) {
               SimpleFeature edgeFeature = iter.next();
-              if (coldRoute.containsEdgeFeature(edgeFeature)) {
-                coldRoutesWithEdges.add(coldRoute);
-                break;
+              if (denseRoute.containsEdgeFeature(edgeFeature)) {
+                denseRoutesWithEdges.add(denseRoute);
+                break DENSE_ROUTES_LOOP; //TODO: something better than a break (with label)
               }
           }
         }
       }
     }
-    return coldRoutesWithEdges;
+    return denseRoutesWithEdges;
   }
 
-  public Map<Integer, Integer> getColdRoutesSizeByLength() {
+  public Map<Integer, Integer> getDenseRoutesSizeByLength() {
     Map<Integer, Integer> sizeByLength = new HashMap<Integer, Integer>();
     Integer size, length;
-    for(ColdRoute coldRoute : coldRoutes) {
-      length = coldRoute.getLength();
+    for(DenseRoute denseRoute : denseRoutes) {
+      length = denseRoute.getLength();
       size = sizeByLength.get(length);
       if (size == null) {
         size = new Integer(1);
@@ -100,7 +99,7 @@ public class ColdRoutes extends Routes {
 
   @Override
   public Map<Integer, Integer> getRoutesSizeByLength() {
-    return getColdRoutesSizeByLength();
+    return getDenseRoutesSizeByLength();
   }
 
 }

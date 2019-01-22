@@ -23,14 +23,20 @@ package ar.uba.fi.result;
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import ar.uba.fi.roadnetwork.RoadNetwork;
 import de.lmu.ifi.dbs.elki.result.Result;
+import de.lmu.ifi.dbs.elki.logging.Logging;
 
 /**
  * @author Mariano Kohan
  *
  */
-public class Routes implements Result {
+public abstract class Routes implements Result {
 
   protected RoadNetwork roadNetwork;
 
@@ -50,6 +56,18 @@ public class Routes implements Result {
   @Override
   public String getShortName() {
     return "Routes";
+  }
+
+  public abstract Map<Integer, Integer> getRoutesSizeByLength();
+
+  public void logDenseRoutesSizeByLength(Logging log) {
+    log.info("Routes by length: \n");
+    Map<Integer, Integer> sizeByLength = getRoutesSizeByLength();
+    List<Integer> sortedLengthS = new ArrayList<Integer>(sizeByLength.keySet());
+    Collections.sort(sortedLengthS);
+    for(Integer length : sortedLengthS) {
+      log.info("Length " + length + ": " + sizeByLength.get(length) + " routes\n");
+    }
   }
 
 }

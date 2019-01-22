@@ -1,7 +1,9 @@
 package ar.uba.fi.result;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
 //TODO: confirm license description
@@ -57,6 +59,27 @@ public class HotRoutes extends Routes {
   @Override
   public String getShortName() {
     return "Density-based hot routes";
+  }
+
+  public Map<Integer, Integer> getHotRoutesSizeByLength() {
+    Map<Integer, Integer> sizeByLength = new HashMap<Integer, Integer>();
+    Integer size, length;
+    for(HotRoute hotRoute : hotRoutes) {
+      length = hotRoute.getLength();
+      size = sizeByLength.get(length);
+      if (size == null) {
+        size = new Integer(1);
+      } else {
+        size = size + 1;
+      }
+      sizeByLength.put(length, size);
+    }
+    return sizeByLength;
+  }
+
+  @Override
+  public Map<Integer, Integer> getRoutesSizeByLength() {
+    return getHotRoutesSizeByLength();
   }
 
 }

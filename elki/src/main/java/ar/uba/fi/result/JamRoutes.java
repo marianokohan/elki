@@ -5,9 +5,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
@@ -109,6 +111,27 @@ public class JamRoutes extends Routes {
       }
     }
     return jamRoutesWithEdges;
+  }
+
+  public Map<Integer, Integer> getJamRoutesSizeByLength() {
+    Map<Integer, Integer> sizeByLength = new HashMap<Integer, Integer>();
+    Integer size, length;
+    for(JamRoute jamRoute : jamRoutes) {
+      length = jamRoute.getLength();
+      size = sizeByLength.get(length);
+      if (size == null) {
+        size = new Integer(1);
+      } else {
+        size = size + 1;
+      }
+      sizeByLength.put(length, size);
+    }
+    return sizeByLength;
+  }
+
+  @Override
+  public Map<Integer, Integer> getRoutesSizeByLength() {
+    return getJamRoutesSizeByLength();
   }
 
 }

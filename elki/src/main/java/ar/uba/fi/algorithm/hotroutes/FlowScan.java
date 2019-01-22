@@ -96,7 +96,7 @@ public class FlowScan  implements Algorithm {
 //    return TypeUtil.array(TypeUtil.NUMBER_VECTOR_FIELD_2D);
   }
 
-  
+
   //TODO: considerar declaracion de signature devolviendo Result del tipo HotRoutes (en vez de base Result)
   @Override
   public Result run(Database database) {
@@ -113,6 +113,7 @@ public class FlowScan  implements Algorithm {
         extendHotRoute(hotRoute, hotRoutes);
       }
       LOG.info("FlowScan discovers " + hotRoutes.getHotRoutes().size() + " hot routes");
+      hotRoutes.logDenseRoutesSizeByLength(LOG);
     } else {
       LOG.info("Only display trajectories (hot routes not discovered)");
     }
