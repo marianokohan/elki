@@ -21,6 +21,7 @@ import javax.swing.JToolBar;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
+import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
 import org.geotools.swing.event.MapMouseEvent;
@@ -33,7 +34,6 @@ import ar.uba.fi.result.JamRoutes;
 
 import com.vividsolutions.jts.geom.Point;
 
-import de.lmu.ifi.dbs.elki.database.Database;
 import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase;
 import de.lmu.ifi.dbs.elki.logging.Logging;
 import de.lmu.ifi.dbs.elki.result.BasicResult;
@@ -41,15 +41,9 @@ import de.lmu.ifi.dbs.elki.result.HierarchicalResult;
 import de.lmu.ifi.dbs.elki.result.Result;
 import de.lmu.ifi.dbs.elki.result.ResultHandler;
 import de.lmu.ifi.dbs.elki.utilities.datastructures.hierarchy.Hierarchy;
-//TODO: confirm license description
 /*
  This file is developed to be used as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
-
- Copyright (C) 2015
- Ludwig-Maximilians-Universität München
- Lehr- und Forschungseinheit für Datenbanksysteme
- ELKI Development Team
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -83,11 +77,17 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
 
   static final Logging LOG = Logging.getLogger(JamRoutesVisualizer.class);
 
+  //protected Collection<? extends Layer> layers; //TODO: move up
+  protected List<Layer> layers; //TODO: move up
+  private JamRoutes jamRoutes;
+  private StaticArrayDatabase database;
+  private SimpleFeatureSource featureSource;
+  private List<JamRoute> filteredJamRoutes;
+
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
-    // TODO improve
-    JamRoutes jamRoutes = null;
-    StaticArrayDatabase database = null;
+    jamRoutes = null;
+    database = null;
     for (Hierarchy.Iter<Result> iter = ((BasicResult)newResult).getHierarchy().iterChildren(newResult); iter.valid(); iter.advance()) {
       Result result = iter.get();
       if (result instanceof StaticArrayDatabase) {
@@ -102,13 +102,13 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
     if (jamRoutes.getJamRoutes().isEmpty())
       displayTrajectories(jamRoutes, database);
     else
-      displayJamRoutes(jamRoutes, database);
+      displayJamRoutes();
     logJamRoutesFile(jamRoutes);
   }
 
-  private void displayJamRoutes(final JamRoutes jamRoutes, Database database) {
-    final SimpleFeatureSource featureSource = jamRoutes.getRoadNetwork().getRoadsFeatureSource();
-    MapContent map = createMapContent(jamRoutes, database, featureSource);
+  private void displayJamRoutes() {
+    featureSource = jamRoutes.getRoadNetwork().getRoadsFeatureSource();
+    MapContent map = createMapContent();
 
     if (DISPLAY_MAP) {
       mapFrame = new JMapFrame(map);
@@ -143,34 +143,89 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
           }
       });
 
+      btn = new JButton("Filter selected");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+          mapFrame.getMapPane().setCursorTool(
+              new CursorTool() {
+                  @Override
+                  public void onMouseClicked(MapMouseEvent ev) {
+                      filterRoutes(ev, featureSource);
+                  }
+              });
+          }
+      });
+
+      btn = new JButton("Show all");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+              showAllRoutes();
+          }
+      });
+
+      btn = new JButton("Map filtered");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+              mapFiltered();
+          }
+      });
+
       mapFrame.setSize(1400, 900);
       mapFrame.setVisible(true);
     }
   }
 
-  private MapContent createMapContent(final JamRoutes jamRoutes, Database database, final SimpleFeatureSource featureSource) {
+  private MapContent createMapContent() {
     MapContent map = new MapContent();
     map.setTitle(jamRoutes.getLongName());
 
-    map.addLayer(createRoadNetworkLayer(featureSource));
+    filteredJamRoutes = jamRoutes.getJamRoutes();
+    createAndAddMapLayers(map);
+
+    return map;
+  }
+
+  private void createAndAddMapLayers(MapContent map) {
+    this.layers = new LinkedList<Layer>();
+    layers.add(createRoadNetworkLayer(featureSource));
 
     if (DISPLAY_TRAJECTORIES)
-      map.addLayer(createTrajectoriesLayer(featureSource, database));
+      layers.add(createTrajectoriesLayer(featureSource, database));
 
-    Map<String, SimpleFeatureCollection> jamRoutesFeatures = extractFeatures(jamRoutes.getJamRoutes());
+    Map<String, SimpleFeatureCollection> jamRoutesFeatures = extractFeatures(filteredJamRoutes);
     if (jamRoutesFeatures.containsKey("EDGES")) {
-      map.addLayer(createEdgesLayer(jamRoutesFeatures.get("EDGES"), featureSource, JAM_ROUTE_COLOR, 3));
+      layers.add(createEdgesLayer(jamRoutesFeatures.get("EDGES"), featureSource, JAM_ROUTE_COLOR, 3));
     } else {
       System.out.println("only edges with jams ?!?");
     }
     if (jamRoutesFeatures.containsKey("JAMS")) {
-      map.addLayer(createEdgesLayer(jamRoutesFeatures.get("JAMS"), featureSource, JAM_ROUTE_JAM_COLOR, 4));
+      layers.add(createEdgesLayer(jamRoutesFeatures.get("JAMS"), featureSource, JAM_ROUTE_JAM_COLOR, 4));
     } else {
       System.out.println("no edges with jams");
     }
-    map.addLayer(createPointsLayer(jamRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, JAM_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(jamRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, JAM_ROUTE_POINT_COLOR, 8));
-    return map;
+    layers.add(createPointsLayer(jamRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, JAM_ROUTE_POINT_COLOR, 5));
+    layers.add(createPointsLayer(jamRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, JAM_ROUTE_POINT_COLOR, 8));
+
+    for(Layer layer : layers) {
+      map.addLayer(layer);
+    }
+  }
+
+  private void removeMapLayers() {
+    MapContent mapContent = mapFrame.getMapContent();
+    for(Layer layer : layers) {
+      mapContent.removeLayer(layer);
+    }
+    this.layers = null;
   }
 
   private Map<String, SimpleFeatureCollection> extractFeatures(List<JamRoute> jamRoutes) {
@@ -204,11 +259,18 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
   }
 
   /**
-   * This method is called by our feature selection tool when
+   * These methods are called by our feature selection tool when
    * the user has clicked on the map.
    *
    * @param ev the mouse event being handled
    */
+  void filterRoutes(MapMouseEvent ev, SimpleFeatureSource featureSource) {
+    SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+    filteredJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+    removeMapLayers();
+    createAndAddMapLayers(mapFrame.getMapContent());
+  }
+
   void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
       SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
       List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
@@ -223,6 +285,18 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
       if (exportJamRoutesToGeoJson(mapJamRoutesFeatures))
         PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
+  }
+
+  void showAllRoutes() {
+    removeMapLayers();
+    filteredJamRoutes = jamRoutes.getJamRoutes();
+    createAndAddMapLayers(mapFrame.getMapContent());
+  }
+
+  void mapFiltered() {
+    Map<String, SimpleFeatureCollection> mapFilteredJamRoutesFeatures = extractFeatures(filteredJamRoutes);
+    if (exportJamRoutesToGeoJson(mapFilteredJamRoutesFeatures))
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 
   private boolean exportJamRoutesToGeoJson(Map<String, SimpleFeatureCollection> jamRoutesFeatures) {
