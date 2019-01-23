@@ -14,18 +14,13 @@ import java.util.Set;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.graph.structure.DirectedEdge;
 import org.opengis.feature.simple.SimpleFeature;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
-//TODO: confirm license description
 /*
  This file is developed to be used as part of ELKI:
  Environment for Developing KDD-Applications Supported by Index-Structures
-
- Copyright (C) 2015
- Ludwig-Maximilians-Universität München
- Lehr- und Forschungseinheit für Datenbanksysteme
- ELKI Development Team
 
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU Affero General Public License as published by
@@ -48,6 +43,7 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
 public class JamRoutes extends Routes {
 
   private List<JamRoute> jamRoutes;
+  private Map<String,List<JamRoute>> jamRoutesByEdge;
 
   public JamRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
@@ -58,8 +54,8 @@ public class JamRoutes extends Routes {
     return this.jamRoutes;
   }
 
-  public void addJamRoute(JamRoute JamRoute) {
-    this.jamRoutes.add(JamRoute);
+  public void addJamRoute(JamRoute jamRoute) {
+    this.jamRoutes.add(jamRoute);
   }
 
   @Override
@@ -92,21 +88,35 @@ public class JamRoutes extends Routes {
     return jamEdgeIds;
   }
 
+  private void indexJamRoutes(boolean jamRoutesWithJams) {
+    if (this.jamRoutesByEdge == null) {
+      this.jamRoutesByEdge = new HashMap<String, List<JamRoute>>();
+      for(JamRoute jamRoute : jamRoutes) {
+        if ( (jamRoutesWithJams && jamRoute.containsJams()) ||
+            (!jamRoutesWithJams) ){
+          for(DirectedEdge jamRouteEdge : jamRoute.edges) {
+            String edgeId = ((SimpleFeature)jamRouteEdge.getObject()).getID();
+            List<JamRoute> edgeJamRoutes = this.jamRoutesByEdge.get(edgeId);
+            if (edgeJamRoutes == null) {
+              edgeJamRoutes = new LinkedList<JamRoute>();
+              this.jamRoutesByEdge.put(edgeId, edgeJamRoutes);
+            }
+            edgeJamRoutes.add(jamRoute);
+          }
+        }
+      }
+    }
+  }
+
   public List<JamRoute> filterJamRouteWithEdges(SimpleFeatureCollection edges, boolean jamRoutesWithJams) {
     List<JamRoute> jamRoutesWithEdges = new LinkedList<JamRoute>();
     if (!edges.isEmpty()) {
-      for(JamRoute jamRoute : this.jamRoutes) {
-        if ( (jamRoutesWithJams && jamRoute.containsJams()) ||
-            (!jamRoutesWithJams) ){
-          try (SimpleFeatureIterator iter = edges.features()) {
-            while (iter.hasNext()) {
-                SimpleFeature edgeFeature = iter.next();
-                if (jamRoute.containsEdgeFeature(edgeFeature)) {
-                  jamRoutesWithEdges.add(jamRoute);
-                  break; //TODO: improve to avoid iterate this.jamRoutes
-                }
-            }
-          }
+      this.indexJamRoutes(jamRoutesWithJams);
+      try (SimpleFeatureIterator iter = edges.features()) {
+        while (iter.hasNext()) {
+            SimpleFeature edgeFeature = iter.next();
+            List<JamRoute> edgeJamRoutes = this.jamRoutesByEdge.getOrDefault(edgeFeature.getID(), new LinkedList<JamRoute>());
+            jamRoutesWithEdges.addAll(edgeJamRoutes);
         }
       }
     }

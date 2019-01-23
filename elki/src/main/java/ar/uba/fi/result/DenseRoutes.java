@@ -8,6 +8,7 @@ import java.util.Map;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.graph.structure.DirectedEdge;
 import org.opengis.feature.simple.SimpleFeature;
 
 import ar.uba.fi.roadnetwork.RoadNetwork;
@@ -38,6 +39,7 @@ import ar.uba.fi.roadnetwork.RoadNetwork;
 public class DenseRoutes extends Routes {
 
   private List<DenseRoute> denseRoutes;
+  private Map<String,List<DenseRoute>> denseRoutesByEdge;
 
   public DenseRoutes(RoadNetwork roadNetwork) {
     this.roadNetwork = roadNetwork;
@@ -62,19 +64,32 @@ public class DenseRoutes extends Routes {
     return "Dense routes";
   }
 
+  private void indexDenseRoutes() {
+    if (this.denseRoutesByEdge == null) {
+      this.denseRoutesByEdge = new HashMap<String, List<DenseRoute>>();
+      for(DenseRoute denseRoute : this.denseRoutes) {
+        for(DirectedEdge denseRouteEdge : denseRoute.edges) {
+          String edgeId = ((SimpleFeature)denseRouteEdge.getObject()).getID();
+          List<DenseRoute> edgeDenseRoutes = this.denseRoutesByEdge.get(edgeId);
+          if (edgeDenseRoutes == null) {
+            edgeDenseRoutes = new LinkedList<DenseRoute>();
+            this.denseRoutesByEdge.put(edgeId, edgeDenseRoutes);
+          }
+          edgeDenseRoutes.add(denseRoute);
+        }
+      }
+    }
+  }
+
   public List<DenseRoute> filterDenseRouteWithEdges(SimpleFeatureCollection edges) {
     List<DenseRoute> denseRoutesWithEdges = new LinkedList<DenseRoute>();
     if (!edges.isEmpty()) {
-      DENSE_ROUTES_LOOP:
-      for(DenseRoute denseRoute : this.denseRoutes) {
-        try (SimpleFeatureIterator iter = edges.features()) {
-          while (iter.hasNext()) {
-              SimpleFeature edgeFeature = iter.next();
-              if (denseRoute.containsEdgeFeature(edgeFeature)) {
-                denseRoutesWithEdges.add(denseRoute);
-                break DENSE_ROUTES_LOOP; //TODO: something better than a break (with label)
-              }
-          }
+      this.indexDenseRoutes();
+      try (SimpleFeatureIterator iter = edges.features()) {
+        while (iter.hasNext()) {
+            SimpleFeature edgeFeature = iter.next();
+            List<DenseRoute> edgeJamRoutes = this.denseRoutesByEdge.getOrDefault(edgeFeature.getID(), new LinkedList<DenseRoute>());
+            denseRoutesWithEdges.addAll(edgeJamRoutes);
         }
       }
     }
