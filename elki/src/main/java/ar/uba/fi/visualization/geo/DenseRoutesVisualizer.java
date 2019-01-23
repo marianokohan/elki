@@ -12,8 +12,8 @@ import javax.swing.JButton;
 import javax.swing.JToolBar;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
+import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
 import org.geotools.swing.JMapFrame;
 import org.geotools.swing.event.MapMouseEvent;
@@ -25,7 +25,6 @@ import ar.uba.fi.result.DenseRoutes;
 
 import com.vividsolutions.jts.geom.Point;
 
-import de.lmu.ifi.dbs.elki.database.Database;
 import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase;
 import de.lmu.ifi.dbs.elki.logging.Logging;
 import de.lmu.ifi.dbs.elki.result.BasicResult;
@@ -65,11 +64,13 @@ public class DenseRoutesVisualizer extends RoutesVisualizer implements ResultHan
   private static final Color DENSE_ROUTE_POINT_COLOR = new Color(204, 197, 0); //TODO: specific value for this (?)
   static final Logging LOG = Logging.getLogger(DenseRoutesVisualizer.class);
 
+  private DenseRoutes denseRoutes;
+  private List<DenseRoute> filteredDenseRoutes;
+
   @Override
   public void processNewResult(HierarchicalResult baseResult, Result newResult) {
-    // TODO improve -> base for cast and child for specific cases ?(to review)
-    DenseRoutes denseRoutes = null;
-    StaticArrayDatabase database = null;
+    denseRoutes = null;
+    database = null;
     for (Hierarchy.Iter<Result> iter = ((BasicResult)newResult).getHierarchy().iterChildren(newResult); iter.valid(); iter.advance()) {
       Result result = iter.get();
       if (result instanceof StaticArrayDatabase) {
@@ -84,12 +85,12 @@ public class DenseRoutesVisualizer extends RoutesVisualizer implements ResultHan
     if (denseRoutes.getDenseRoutes().isEmpty())
       displayTrajectories(denseRoutes, database);
     else
-      displayDenseRoutes(denseRoutes, database);
+      displayDenseRoutes();
   }
 
-  private void displayDenseRoutes(final DenseRoutes denseRoutes, Database database) {
-    final SimpleFeatureSource featureSource = denseRoutes.getRoadNetwork().getRoadsFeatureSource();
-    MapContent map = createMapContent(denseRoutes, database, featureSource);
+  private void displayDenseRoutes() {
+    featureSource = denseRoutes.getRoadNetwork().getRoadsFeatureSource();
+    MapContent map = createMapContent();
 
     if (DISPLAY_MAP) {
       mapFrame = new JMapFrame(map);
@@ -107,7 +108,9 @@ public class DenseRoutesVisualizer extends RoutesVisualizer implements ResultHan
               new CursorTool() {
                   @Override
                   public void onMouseClicked(MapMouseEvent ev) {
-                      selectFeatures(ev, featureSource, denseRoutes);
+                      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+                      List<DenseRoute> selectedDenseRoutes = denseRoutes.filterDenseRouteWithEdges(selectedFeatures);
+                      exportDenseRoutes(selectedDenseRoutes);
                   }
               });
           }
@@ -119,29 +122,88 @@ public class DenseRoutesVisualizer extends RoutesVisualizer implements ResultHan
       btn.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-              mapFeatures(featureSource, denseRoutes);
+              SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
+              List<DenseRoute> mapDenseRoutes = denseRoutes.filterDenseRouteWithEdges(selectedFeatures);
+              exportDenseRoutes(mapDenseRoutes);
           }
       });
+
+      btn = new JButton("Filter selected");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+          mapFrame.getMapPane().setCursorTool(
+              new CursorTool() {
+                  @Override
+                  public void onMouseClicked(MapMouseEvent ev) {
+                      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+                      filteredDenseRoutes = denseRoutes.filterDenseRouteWithEdges(selectedFeatures);
+                      if (filteredDenseRoutes.isEmpty()) {
+                        System.out.println("Filtered dense routes empty");
+                        filteredDenseRoutes = denseRoutes.getDenseRoutes();
+                      } else {
+                        removeMapLayers();
+                        createAndAddMapLayers(mapFrame.getMapContent());
+                      }
+                  }
+              });
+          }
+      });
+
+      btn = new JButton("Show all");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+              removeMapLayers();
+              filteredDenseRoutes = denseRoutes.getDenseRoutes();
+              createAndAddMapLayers(mapFrame.getMapContent());
+          }
+      });
+
+      btn = new JButton("Map filtered");
+      toolBar.addSeparator();
+      toolBar.add(btn);
+      btn.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            exportDenseRoutes(filteredDenseRoutes);
+          }
+      });
+
 
       mapFrame.setSize(1400, 900);
       mapFrame.setVisible(true);
     }
   }
 
-  private MapContent createMapContent(DenseRoutes denseRoutes, Database database, SimpleFeatureSource featureSource) {
+  private MapContent createMapContent() {
     MapContent map = new MapContent();
     map.setTitle(denseRoutes.getLongName());
-
-    map.addLayer(createRoadNetworkLayer(featureSource));
-    if (DISPLAY_TRAJECTORIES)
-      map.addLayer(createTrajectoriesLayer(featureSource, database));
-
-    Map<String, SimpleFeatureCollection> denseRoutesFeatures = extractFeatures(denseRoutes.getDenseRoutes());
-
-    map.addLayer(createEdgesLayer(denseRoutesFeatures.get("EDGES"), featureSource, DENSE_ROUTE_COLOR, 3));
-    map.addLayer(createPointsLayer(denseRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, DENSE_ROUTE_POINT_COLOR, 5));
-    map.addLayer(createPointsLayer(denseRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, DENSE_ROUTE_POINT_COLOR, 8));
+    filteredDenseRoutes = denseRoutes.getDenseRoutes();
+    createAndAddMapLayers(map);
     return map;
+  }
+
+  private void createAndAddMapLayers(MapContent map) {
+    this.layers = new LinkedList<Layer>();
+
+    layers.add(createRoadNetworkLayer(featureSource));
+    if (DISPLAY_TRAJECTORIES)
+      layers.add(createTrajectoriesLayer(featureSource, database));
+
+    Map<String, SimpleFeatureCollection> denseRoutesFeatures = extractFeatures(filteredDenseRoutes);
+
+    layers.add(createEdgesLayer(denseRoutesFeatures.get("EDGES"), featureSource, DENSE_ROUTE_COLOR, 3));
+    layers.add(createPointsLayer(denseRoutesFeatures.get("STARTS"), featureSource, PointPositionType.START, DENSE_ROUTE_POINT_COLOR, 5));
+    layers.add(createPointsLayer(denseRoutesFeatures.get("ENDS"), featureSource, PointPositionType.END, DENSE_ROUTE_POINT_COLOR, 8));
+
+    for(Layer layer : layers) {
+      map.addLayer(layer);
+    }
   }
 
   private Map<String, SimpleFeatureCollection> extractFeatures(List<DenseRoute> denseRoutes) {
@@ -162,26 +224,10 @@ public class DenseRoutesVisualizer extends RoutesVisualizer implements ResultHan
     return denseRoutesFeatures;
   }
 
-  /**
-   * This method is called by our feature selection tool when
-   * the user has clicked on the map.
-   *
-   * @param ev the mouse event being handled
-   */
-  void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, DenseRoutes denseRoutes) {
-      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
-      List<DenseRoute> selectedDenseRoutes = denseRoutes.filterDenseRouteWithEdges(selectedFeatures);
-      Map<String, SimpleFeatureCollection> selectedDenseRoutesFeatures = extractFeatures(selectedDenseRoutes);
-      if (exportDenseRoutesToGeoJson(selectedDenseRoutesFeatures))
-        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.DenseRoutesMapVisualizer"});
-  }
-
-  void mapFeatures(SimpleFeatureSource featureSource, DenseRoutes denseRoutes) {
-      SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
-      List<DenseRoute> mapDenseRoutes = denseRoutes.filterDenseRouteWithEdges(selectedFeatures);
-      Map<String, SimpleFeatureCollection> mapDenseRoutesFeatures = extractFeatures(mapDenseRoutes);
-      if (exportDenseRoutesToGeoJson(mapDenseRoutesFeatures))
-        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.DenseRoutesMapVisualizer"});
+  private void exportDenseRoutes(List<DenseRoute> denseRoutes) {
+    Map<String, SimpleFeatureCollection> denseRoutesFeatures = extractFeatures(denseRoutes);
+    if (exportDenseRoutesToGeoJson(denseRoutesFeatures))
+      PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.DenseRoutesMapVisualizer"});
   }
 
   private boolean exportDenseRoutesToGeoJson(Map<String, SimpleFeatureCollection> denseRoutesFeatures) {

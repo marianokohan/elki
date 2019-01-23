@@ -19,7 +19,6 @@ import javax.swing.JButton;
 import javax.swing.JToolBar;
 
 import org.geotools.data.simple.SimpleFeatureCollection;
-import org.geotools.data.simple.SimpleFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.map.Layer;
 import org.geotools.map.MapContent;
@@ -77,11 +76,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
 
   static final Logging LOG = Logging.getLogger(JamRoutesVisualizer.class);
 
-  //protected Collection<? extends Layer> layers; //TODO: move up
-  protected List<Layer> layers; //TODO: move up
   private JamRoutes jamRoutes;
-  private StaticArrayDatabase database;
-  private SimpleFeatureSource featureSource;
   private List<JamRoute> filteredJamRoutes;
 
   @Override
@@ -127,7 +122,9 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
               new CursorTool() {
                   @Override
                   public void onMouseClicked(MapMouseEvent ev) {
-                      selectFeatures(ev, featureSource, jamRoutes);
+                      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+                      List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+                      exportJamRoutes(selectedJamRoutes);
                   }
               });
           }
@@ -139,7 +136,9 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       btn.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-              mapFeatures(featureSource, jamRoutes);
+              SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
+              List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+              exportJamRoutes(mapJamRoutes);
           }
       });
 
@@ -153,7 +152,15 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
               new CursorTool() {
                   @Override
                   public void onMouseClicked(MapMouseEvent ev) {
-                      filterRoutes(ev, featureSource);
+                      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
+                      filteredJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
+                      if (filteredJamRoutes.isEmpty()) {
+                        System.out.println("Filtered jam routes empty");
+                        filteredJamRoutes = jamRoutes.getJamRoutes();
+                      } else {
+                        removeMapLayers();
+                        createAndAddMapLayers(mapFrame.getMapContent());
+                      }
                   }
               });
           }
@@ -165,7 +172,9 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       btn.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-              showAllRoutes();
+              removeMapLayers();
+              filteredJamRoutes = jamRoutes.getJamRoutes();
+              createAndAddMapLayers(mapFrame.getMapContent());
           }
       });
 
@@ -175,7 +184,7 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
       btn.addActionListener(new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
-              mapFiltered();
+              exportJamRoutes(filteredJamRoutes);
           }
       });
 
@@ -187,10 +196,8 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
   private MapContent createMapContent() {
     MapContent map = new MapContent();
     map.setTitle(jamRoutes.getLongName());
-
     filteredJamRoutes = jamRoutes.getJamRoutes();
     createAndAddMapLayers(map);
-
     return map;
   }
 
@@ -218,14 +225,6 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
     for(Layer layer : layers) {
       map.addLayer(layer);
     }
-  }
-
-  private void removeMapLayers() {
-    MapContent mapContent = mapFrame.getMapContent();
-    for(Layer layer : layers) {
-      mapContent.removeLayer(layer);
-    }
-    this.layers = null;
   }
 
   private Map<String, SimpleFeatureCollection> extractFeatures(List<JamRoute> jamRoutes) {
@@ -258,44 +257,9 @@ public class JamRoutesVisualizer extends RoutesVisualizer implements ResultHandl
     return jamRoutesFeatures;
   }
 
-  /**
-   * These methods are called by our feature selection tool when
-   * the user has clicked on the map.
-   *
-   * @param ev the mouse event being handled
-   */
-  void filterRoutes(MapMouseEvent ev, SimpleFeatureSource featureSource) {
-    SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
-    filteredJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
-    removeMapLayers();
-    createAndAddMapLayers(mapFrame.getMapContent());
-  }
-
-  void selectFeatures(MapMouseEvent ev, SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
-      SimpleFeatureCollection selectedFeatures = getSelectedFeaturedFromClick(ev, featureSource);
-      List<JamRoute> selectedJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
-      Map<String, SimpleFeatureCollection> selectedJamRoutesFeatures = extractFeatures(selectedJamRoutes);
-      if (exportJamRoutesToGeoJson(selectedJamRoutesFeatures))
-        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
-  }
-
-  void mapFeatures(SimpleFeatureSource featureSource, JamRoutes jamRoutes) {
-      SimpleFeatureCollection selectedFeatures = getSelectedFeatureFromMap(featureSource);
-      List<JamRoute> mapJamRoutes = jamRoutes.filterJamRouteWithEdges(selectedFeatures, DISPLAY_ONLY_ROUTES_WITH_JAMS);
-      Map<String, SimpleFeatureCollection> mapJamRoutesFeatures = extractFeatures(mapJamRoutes);
-      if (exportJamRoutesToGeoJson(mapJamRoutesFeatures))
-        PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
-  }
-
-  void showAllRoutes() {
-    removeMapLayers();
-    filteredJamRoutes = jamRoutes.getJamRoutes();
-    createAndAddMapLayers(mapFrame.getMapContent());
-  }
-
-  void mapFiltered() {
-    Map<String, SimpleFeatureCollection> mapFilteredJamRoutesFeatures = extractFeatures(filteredJamRoutes);
-    if (exportJamRoutesToGeoJson(mapFilteredJamRoutesFeatures))
+  private void exportJamRoutes(List<JamRoute> jamRoutes) {
+    Map<String, SimpleFeatureCollection> jamRoutesFeatures = extractFeatures(jamRoutes);
+    if (exportJamRoutesToGeoJson(jamRoutesFeatures))
       PApplet.main(new String[] { "--external", "ar.uba.fi.visualization.geo.map.JamRoutesMapVisualizer"});
   }
 

@@ -19,6 +19,7 @@ import org.geotools.geometry.jts.JTSFactoryFinder;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.map.FeatureLayer;
 import org.geotools.map.Layer;
+import org.geotools.map.MapContent;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.geotools.styling.FeatureTypeStyle;
 import org.geotools.styling.Fill;
@@ -74,6 +75,8 @@ public class MapVisualizer {
   protected StyleFactory styleFactory = CommonFactoryFinder.getStyleFactory(null);
   protected FilterFactory2 filterFactory = CommonFactoryFinder.getFilterFactory2();
   protected JMapFrame mapFrame;
+  protected List<Layer> layers;
+  protected SimpleFeatureSource featureSource;
 
   public MapVisualizer() {
     super();
@@ -229,6 +232,14 @@ public class MapVisualizer {
     } catch (IOException ioException) {
         System.err.format("IOException on export features to geojson file %s: %s%n", jamRoutesGeoJsonPath, ioException);
     }
+  }
+
+  protected void removeMapLayers() {
+    MapContent mapContent = mapFrame.getMapContent();
+    for(Layer layer : layers) {
+      mapContent.removeLayer(layer);
+    }
+    this.layers = null;
   }
 
 }

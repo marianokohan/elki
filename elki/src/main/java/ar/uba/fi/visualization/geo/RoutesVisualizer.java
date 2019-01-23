@@ -78,6 +78,7 @@ import de.lmu.ifi.dbs.elki.data.DoubleVector;
 import de.lmu.ifi.dbs.elki.data.LabelList;
 import de.lmu.ifi.dbs.elki.data.type.TypeUtil;
 import de.lmu.ifi.dbs.elki.database.Database;
+import de.lmu.ifi.dbs.elki.database.StaticArrayDatabase;
 import de.lmu.ifi.dbs.elki.database.ids.DBIDIter;
 import de.lmu.ifi.dbs.elki.database.relation.Relation;
 import de.lmu.ifi.dbs.elki.logging.Logging;
@@ -93,6 +94,9 @@ public class RoutesVisualizer extends MapVisualizer {
 
   private static final Color TRAJECTORY_COLOR = new Color(50, 100, 228);
   static final Logging LOG = Logging.getLogger(RoutesVisualizer.class);
+
+  protected StaticArrayDatabase database;
+
   public RoutesVisualizer() {
     super();
   }
