@@ -2,6 +2,7 @@ package ar.uba.fi.algorithm.denseroutes;
 
 import java.io.File;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -90,13 +91,13 @@ public class DensityScan  implements Algorithm {
     DenseRoutes denseRoutes = new DenseRoutes(roadNetwork);
 
     if (!this.onlyTrajectories) {
-      Set<DirectedEdge> visitedEdges = new HashSet<DirectedEdge>();
+      Set<String> visitedEdges = new HashSet<String>();
       List<DirectedEdge> denseRoutesStarts = denseRouteStarts();
       LOG.info("discovered " + denseRoutesStarts.size()  + " start edges");
       Set<DenseRoute> forwardExtendedDenseRoutes = new HashSet<DenseRoute>();
       for(DirectedEdge denseEdge : denseRoutesStarts) {
         DenseRoute denseRoute = new DenseRoute(denseEdge);
-        visitedEdges.add(denseEdge);
+        visitedEdges.add(((SimpleFeature)denseEdge.getObject()).getID());
         forwardExtendedDenseRoutes.addAll(this.extendDenseRoute(denseRoute, EXTEND_DIRECTION.FORWARD, visitedEdges));
       }
       Set<DenseRoute> extendedDenseRoutes = new HashSet<DenseRoute>();
@@ -104,6 +105,7 @@ public class DensityScan  implements Algorithm {
         extendedDenseRoutes.addAll(this.extendDenseRoute(forwardExtendedColdRoute, EXTEND_DIRECTION.BACKWARD, visitedEdges));
       }
       denseRoutes.addDenseRoutes(extendedDenseRoutes);
+      LOG.info("visited " + visitedEdges.size()  + " start edges");
       LOG.info("DensityScan discovers " + denseRoutes.getDenseRoutes().size() + " dense routes");
       denseRoutes.logDenseRoutesSizeByLength(LOG);
 
@@ -124,11 +126,23 @@ public class DensityScan  implements Algorithm {
           denseRoutesStarts.add(edge);
         }
       }
+    denseRoutesStarts.sort(new Comparator<DirectedEdge>() {
+      @Override
+      public int compare(DirectedEdge edge1, DirectedEdge edge2) {
+        String edge1ID = ((SimpleFeature)edge1.getObject()).getID();
+        String edge2ID = ((SimpleFeature)edge2.getObject()).getID();
+        Integer edge1Density = edgeDensities.density(edge1ID);
+        Integer edge2Density = edgeDensities.density(edge2ID);
+        int densityComparison = -1 * edge1Density.compareTo(edge2Density);
+        return (densityComparison == 0) ? edge1ID.compareTo(edge2ID) : densityComparison;
+      }
+
+    });
     return denseRoutesStarts;
   }
 
 
-  private Set<DenseRoute> extendDenseRoute(DenseRoute denseRoute, EXTEND_DIRECTION direction, Set<DirectedEdge> visitedEdges) {
+  private Set<DenseRoute> extendDenseRoute(DenseRoute denseRoute, EXTEND_DIRECTION direction, Set<String> visitedEdges) {
     Set<DenseRoute> extendedDenseRoutes = new HashSet<DenseRoute>();
 
     List<DenseRoute> denseRoutesToExtend = new LinkedList<DenseRoute>();
@@ -142,11 +156,11 @@ public class DensityScan  implements Algorithm {
         Set<DirectedEdge> neighboringDenseEdges = this.getNeighboringDenseEdges(currentDenseRoute, direction);
         if (!neighboringDenseEdges.isEmpty()) {
           for(DirectedEdge neighboringDenseEdge : neighboringDenseEdges) {
-            if (!visitedEdges.contains(neighboringDenseEdge)) {
+            if (!visitedEdges.contains(((SimpleFeature)neighboringDenseEdge.getObject()).getID())) {
               boolean addEdgeToEnd = direction.equals(EXTEND_DIRECTION.FORWARD) ? true: false;
               DenseRoute extendedDenseRoute = currentDenseRoute.copyWithEdge(neighboringDenseEdge, addEdgeToEnd);
               denseRoutesToExtend.add(extendedDenseRoute);
-              visitedEdges.add(neighboringDenseEdge);
+              visitedEdges.add(((SimpleFeature)neighboringDenseEdge.getObject()).getID());
             }
           }
         } else {
