@@ -94,15 +94,16 @@ public class DensityScan  implements Algorithm {
       Set<String> visitedEdges = new HashSet<String>();
       List<DirectedEdge> denseRoutesStarts = denseRouteStarts();
       LOG.info("discovered " + denseRoutesStarts.size()  + " start edges");
-      Set<DenseRoute> forwardExtendedDenseRoutes = new HashSet<DenseRoute>();
+
+      List<DenseRoute> extendedDenseRoutes = new LinkedList<DenseRoute>();
+      List<DenseRoute> forwardExtendedDenseRoutes = null;
       for(DirectedEdge denseEdge : denseRoutesStarts) {
         DenseRoute denseRoute = new DenseRoute(denseEdge);
         visitedEdges.add(((SimpleFeature)denseEdge.getObject()).getID());
-        forwardExtendedDenseRoutes.addAll(this.extendDenseRoute(denseRoute, EXTEND_DIRECTION.FORWARD, visitedEdges));
-      }
-      Set<DenseRoute> extendedDenseRoutes = new HashSet<DenseRoute>();
-      for(DenseRoute forwardExtendedColdRoute : forwardExtendedDenseRoutes) {
-        extendedDenseRoutes.addAll(this.extendDenseRoute(forwardExtendedColdRoute, EXTEND_DIRECTION.BACKWARD, visitedEdges));
+        forwardExtendedDenseRoutes = this.extendDenseRoute(denseRoute, EXTEND_DIRECTION.FORWARD, visitedEdges);
+        for(DenseRoute forwardExtendedColdRoute : forwardExtendedDenseRoutes) {
+          extendedDenseRoutes.addAll(this.extendDenseRoute(forwardExtendedColdRoute, EXTEND_DIRECTION.BACKWARD, visitedEdges));
+        }
       }
       denseRoutes.addDenseRoutes(extendedDenseRoutes);
       LOG.info("visited " + visitedEdges.size()  + " start edges");
@@ -142,8 +143,8 @@ public class DensityScan  implements Algorithm {
   }
 
 
-  private Set<DenseRoute> extendDenseRoute(DenseRoute denseRoute, EXTEND_DIRECTION direction, Set<String> visitedEdges) {
-    Set<DenseRoute> extendedDenseRoutes = new HashSet<DenseRoute>();
+  private List<DenseRoute> extendDenseRoute(DenseRoute denseRoute, EXTEND_DIRECTION direction, Set<String> visitedEdges) {
+    List<DenseRoute> extendedDenseRoutes = new LinkedList<DenseRoute>();
 
     List<DenseRoute> denseRoutesToExtend = new LinkedList<DenseRoute>();
     denseRoutesToExtend.add(denseRoute);
