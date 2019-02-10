@@ -10,10 +10,11 @@ public class StartPointMarker extends SimplePointMarker {
     super(location);
   }
 
+  @Override
   public void draw(PGraphics pg, float x, float y) {
     pg.pushStyle();
-    pg.fill(153,76, 0);
-    pg.rect(x-2, y-2, 4, 4);
+    pg.fill(255,249,91);
+    pg.rect(x-5, y-5, 10, 10);
     pg.popStyle();
   }
 

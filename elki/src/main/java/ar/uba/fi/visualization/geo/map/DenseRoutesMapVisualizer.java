@@ -12,8 +12,8 @@ import de.fhpotsdam.unfolding.utils.MapUtils;
 public class DenseRoutesMapVisualizer extends RoutesMapVisualizer {
 
   protected String denseRoutesEdgesFileName = "dense_routes_edges.json";
-  protected int edgeColor = color(255, 153, 51); //TODO: definir color
-  protected int edgeWeight = 3;
+  protected int edgeColor = color(255, 127, 0);
+  protected int edgeWeight = 10;
   protected String denseRoutesStartsFileName = "dense_routes_starts.json";
   protected String denseRoutesEndsFileName = "dense_routes_ends.json";
 

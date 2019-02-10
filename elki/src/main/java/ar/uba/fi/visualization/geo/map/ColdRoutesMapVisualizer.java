@@ -12,14 +12,20 @@ import de.fhpotsdam.unfolding.utils.MapUtils;
 public class ColdRoutesMapVisualizer extends RoutesMapVisualizer {
 
   private String coldRoutesEdgesFileName = "cold_routes_edges.json";
+  /* defined below
   private int edgeColor = color(0, 118, 214);
-  private int edgeWeight = 3;
+  private int edgeWeight = 9;
+  */
   private String coldRoutesColdTrafficFileName = "cold_routes_cold_traffic.json";
   private int coldTrafficColor = color(56, 150, 30);
-  private int coldTrafficWeight = 4;
+  private int coldTrafficWeight = 10;
+  //for end user point of view "cold traffic" edges has no additional meaning
+  private int edgeColor = coldTrafficColor;
+  private int edgeWeight = coldTrafficWeight;
   private String coldRoutesStartsFileName = "cold_routes_starts.json";
   private String coldRoutesEndsFileName = "cold_routes_ends.json";
 
+  @Override
   public void setup() {
       size(1400, 900);
       providerSetup();
