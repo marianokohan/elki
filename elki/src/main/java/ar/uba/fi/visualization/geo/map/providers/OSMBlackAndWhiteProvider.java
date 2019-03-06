@@ -6,6 +6,7 @@ import de.fhpotsdam.unfolding.providers.OpenStreetMap.GenericOpenStreetMapProvid
 public class OSMBlackAndWhiteProvider extends GenericOpenStreetMapProvider {
 
   //based on http://leaflet-extras.github.io/leaflet-providers/preview/index.html
+  // theme "OpenStreetMap.BlackAndWhite"
 
   @Override
   public String[] getTileUrls(Coordinate coordinate) {
