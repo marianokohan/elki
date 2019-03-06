@@ -14,7 +14,7 @@ public class StartPointMarker extends SimplePointMarker {
   public void draw(PGraphics pg, float x, float y) {
     pg.pushStyle();
     pg.fill(255,249,91);
-    pg.rect(x-5, y-5, 10, 10);
+    pg.rect(x-10, y-10, 20, 20);
     pg.popStyle();
   }
 

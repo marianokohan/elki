@@ -13,10 +13,10 @@ public class EndPointMarker extends SimplePointMarker {
   @Override
   public void draw(PGraphics pg, float x, float y) {
     pg.pushStyle();
-    pg.strokeWeight(4);
-    pg.stroke(255,246,0);
-    pg.line(x-5, y-5, x+5, y+5);
-    pg.line(x+5, y-5, x-5, y+5);
+    pg.strokeWeight(6);
+    pg.stroke(255,255,0);
+    pg.line(x-10, y-10, x+10, y+10);
+    pg.line(x+10, y-10, x-10, y+10);
     pg.popStyle();
   }
 
